@@ -1,0 +1,189 @@
+{
+  "projectType": "saas",
+  "projectName": "OpenCart",
+  "projectDescription": "A free open source ecommerce platform for online merchants to build successful online stores.",
+  "theme": "linden",
+  "primaryColor": "#70c3d5",
+  "lightColor": "#b1e3ea",
+  "darkColor": "#19c1e8",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "upgrading"
+            ]
+          },
+          {
+            "group": "Store Management",
+            "pages": [
+              "store/catalog",
+              "store/products",
+              "store/categories",
+              "store/orders",
+              "store/customers"
+            ]
+          },
+          {
+            "group": "Design & Layout",
+            "pages": [
+              "design/themes",
+              "design/layouts",
+              "design/banners",
+              "design/seo"
+            ]
+          },
+          {
+            "group": "Extensions",
+            "pages": [
+              "extensions/overview",
+              "extensions/modules",
+              "extensions/payments",
+              "extensions/shipping",
+              "extensions/themes"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/localization",
+              "configuration/users",
+              "configuration/system"
+            ]
+          },
+          {
+            "group": "Marketing",
+            "pages": [
+              "marketing/coupons",
+              "marketing/affiliates",
+              "marketing/newsletters"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "development/architecture",
+              "development/setup",
+              "development/standards"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "development/mvc-pattern",
+              "development/routing",
+              "development/database",
+              "development/events"
+            ]
+          },
+          {
+            "group": "Building Extensions",
+            "pages": [
+              "development/extension-structure",
+              "development/creating-modules",
+              "development/payment-gateways",
+              "development/shipping-methods",
+              "development/themes"
+            ]
+          },
+          {
+            "group": "System Libraries",
+            "pages": [
+              "development/libraries/cart",
+              "development/libraries/database",
+              "development/libraries/session",
+              "development/libraries/cache"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/errors"
+            ]
+          },
+          {
+            "group": "Catalog API",
+            "pages": [
+              "api/catalog/products",
+              "api/catalog/categories",
+              "api/catalog/manufacturers"
+            ]
+          },
+          {
+            "group": "Sales API",
+            "pages": [
+              "api/sales/cart",
+              "api/sales/orders",
+              "api/sales/customers",
+              "api/sales/checkout"
+            ]
+          },
+          {
+            "group": "Account API",
+            "pages": [
+              "api/account/login",
+              "api/account/addresses",
+              "api/account/wishlists"
+            ]
+          },
+          {
+            "group": "Localization API",
+            "pages": [
+              "api/localization/currencies",
+              "api/localization/countries",
+              "api/localization/zones"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-store management",
+    "Unlimited products and categories",
+    "Built-in extension system",
+    "Payment and shipping integrations",
+    "Multi-language and multi-currency support",
+    "SEO-friendly URLs",
+    "Customer management and loyalty programs",
+    "Order management and tracking",
+    "Product reviews and ratings",
+    "Discount coupons and promotions"
+  ],
+  "publicApiSurface": [
+    "POST /api/sale/cart - Add items to cart",
+    "GET /api/sale/order - Retrieve order details",
+    "POST /api/sale/order - Create new order",
+    "POST /api/account/login - Authenticate user",
+    "GET /api/catalog/product - Get product information",
+    "POST /api/sale/customer - Create customer account",
+    "GET /api/sale/shipping_method - Get available shipping methods",
+    "GET /api/sale/payment_method - Get available payment methods",
+    "POST /api/sale/shipping_address - Set shipping address",
+    "POST /api/sale/payment_address - Set payment address",
+    "POST /api/sale/coupon - Apply coupon code",
+    "GET /api/localization/currency - Get available currencies",
+    "Extension system: modules, payments, shipping, themes, reports",
+    "Event system for hooks and modifications",
+    "MVC framework with controllers, models, and views"
+  ]
+}
