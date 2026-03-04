@@ -1,0 +1,404 @@
+---
+title: Login API
+description: Authenticate customers and manage API sessions
+---
+
+## Overview
+
+The Login API handles customer authentication for API sessions. When customer data is set through the Customer API, an automatic login is performed to establish the customer session.
+
+## Authentication Flow
+
+OpenCart API uses session-based authentication:
+
+1. **Customer Data Set** - Customer information provided via API
+2. **Automatic Login** - System logs in customer with provided email
+3. **Session Storage** - Customer data stored in session
+4. **Session Persistence** - Session maintained across API calls
+
+## Customer Login
+
+When setting customer data, the API performs an automatic login:
+
+```php
+// From customer.php:92
+$this->customer->login($post_info['email'], '', true);
+
+// Store customer data in session
+$this->session->data['customer'] = [
+    'customer_id'       => $post_info['customer_id'],
+    'customer_group_id' => $post_info['customer_group_id'],
+    'firstname'         => $post_info['firstname'],
+    'lastname'          => $post_info['lastname'],
+    'email'             => $post_info['email'],
+    'telephone'         => $post_info['telephone'],
+    'custom_field'      => $post_info['custom_field'] ?? []
+];
+```
+
+### Login Parameters
+
+The login method accepts:
+
+<ParamField path="email" type="string" required>
+  Customer email address
+</ParamField>
+
+<ParamField path="password" type="string">
+  Customer password (empty for API authentication)
+</ParamField>
+
+<ParamField path="override" type="boolean">
+  Override password check (true for API)
+</ParamField>
+
+## Session-Based Authentication
+
+API authentication relies on session cookies:
+
+```php
+// Initialize session
+session_start();
+
+// Set customer data (performs login)
+$this->load->controller('api/customer', [
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+]);
+
+// Session now contains customer data
+// All subsequent API calls use this session
+```
+
+### Maintaining Session
+
+Use cookies to maintain session across requests:
+
+```php
+$ch = curl_init();
+
+// Enable cookie handling
+curl_setopt($ch, CURLOPT_COOKIEJAR, 'cookies.txt');
+curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookies.txt');
+
+// First request - set customer
+curl_setopt($ch, CURLOPT_URL, 'https://store.com/index.php?route=api/customer');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($customer_data));
+$response1 = curl_exec($ch);
+
+// Second request - add to cart (uses same session)
+curl_setopt($ch, CURLOPT_URL, 'https://store.com/index.php?route=api/cart/addProduct');
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($product_data));
+$response2 = curl_exec($ch);
+
+curl_close($ch);
+```
+
+## Guest Checkout
+
+For guest checkout (no customer account):
+
+```php
+$data = [
+    'customer_id' => 0,  // 0 indicates guest
+    'customer_group_id' => 1,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+];
+
+$response = $this->load->controller('api/customer', $data);
+
+// Customer is "logged in" as guest
+// Can proceed with checkout
+```
+
+## Existing Customer Login
+
+For existing customers with accounts:
+
+```php
+// Retrieve customer from database
+$this->load->model('account/customer');
+$customer_info = $this->model_account_customer->getCustomer(123);
+
+if ($customer_info) {
+    // Set customer data (performs login)
+    $response = $this->load->controller('api/customer', [
+        'customer_id' => $customer_info['customer_id'],
+        'customer_group_id' => $customer_info['customer_group_id'],
+        'firstname' => $customer_info['firstname'],
+        'lastname' => $customer_info['lastname'],
+        'email' => $customer_info['email'],
+        'telephone' => $customer_info['telephone']
+    ]);
+}
+```
+
+## Session Data Structure
+
+After successful login, session contains:
+
+```php
+[
+    'customer' => [
+        'customer_id' => 123,
+        'customer_group_id' => 1,
+        'firstname' => 'John',
+        'lastname' => 'Doe',
+        'email' => 'john@example.com',
+        'telephone' => '555-1234',
+        'custom_field' => []
+    ],
+    'currency' => 'USD',
+    'language' => 'en-gb',
+    'shipping_address' => [...],
+    'payment_address' => [...],
+    'shipping_method' => [...],
+    'payment_method' => [...]
+]
+```
+
+## JavaScript Example
+
+Using Axios with session support:
+
+```javascript
+const axios = require('axios');
+
+// Create instance with cookie support
+const api = axios.create({
+  baseURL: 'https://your-store.com/index.php',
+  withCredentials: true,  // Enable cookies
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
+});
+
+// Login customer
+async function loginCustomer() {
+  try {
+    const response = await api.post('?route=api/customer',
+      new URLSearchParams({
+        firstname: 'John',
+        lastname: 'Doe',
+        email: 'john@example.com',
+        telephone: '555-1234'
+      })
+    );
+    
+    if (response.data.success) {
+      console.log('Customer logged in');
+      return true;
+    } else {
+      console.error('Login failed:', response.data.error);
+      return false;
+    }
+  } catch (error) {
+    console.error('API Error:', error);
+    return false;
+  }
+}
+
+// Use session in subsequent calls
+async function addToCart() {
+  const response = await api.post('?route=api/cart/addProduct',
+    new URLSearchParams({
+      product_id: 42,
+      quantity: 1
+    })
+  );
+  
+  return response.data;
+}
+
+// Execute
+loginCustomer().then(success => {
+  if (success) {
+    addToCart();
+  }
+});
+```
+
+## Customer Object Methods
+
+The customer object provides several methods:
+
+```php
+// Check if customer is logged in
+if ($this->customer->isLogged()) {
+    $customer_id = $this->customer->getId();
+    $email = $this->customer->getEmail();
+    $firstname = $this->customer->getFirstName();
+    $lastname = $this->customer->getLastName();
+}
+
+// Get customer group
+$customer_group_id = $this->customer->getGroupId();
+
+// Check if customer can access route
+if ($this->customer->hasPermission('access', 'account/order')) {
+    // Customer has access
+}
+```
+
+## Session Security
+
+<AccordionGroup>
+  <Accordion title="Session Cookies">
+    Sessions use HTTP-only cookies to prevent XSS attacks. Cookies are automatically managed by the browser/HTTP client.
+  </Accordion>
+  
+  <Accordion title="HTTPS Required">
+    Always use HTTPS in production to encrypt session data and prevent session hijacking.
+  </Accordion>
+  
+  <Accordion title="Session Timeout">
+    Sessions expire after period of inactivity. Implement session refresh logic for long-running operations.
+  </Accordion>
+  
+  <Accordion title="IP Validation">
+    Configure API IP whitelist in admin panel to restrict access to trusted servers.
+  </Accordion>
+</AccordionGroup>
+
+## Logout
+
+To end a customer session:
+
+```php
+// Logout customer
+$this->customer->logout();
+
+// Clear session data
+unset($this->session->data['customer']);
+unset($this->session->data['payment_address']);
+unset($this->session->data['shipping_address']);
+unset($this->session->data['shipping_method']);
+unset($this->session->data['payment_method']);
+```
+
+## Multi-Store Sessions
+
+For multi-store setups:
+
+```php
+// Sessions are per-store
+$store_id = $this->config->get('config_store_id');
+
+// Each store has separate session management
+// Customer login is store-specific
+```
+
+## Error Handling
+
+```php
+function authenticateCustomer($data) {
+    $response = $this->load->controller('api/customer', $data);
+    
+    if (isset($response['error'])) {
+        // Handle authentication errors
+        foreach ($response['error'] as $field => $message) {
+            log_error("Authentication failed [{$field}]: {$message}");
+        }
+        return false;
+    }
+    
+    // Check if session has customer data
+    if (isset($this->session->data['customer'])) {
+        return true;
+    }
+    
+    return false;
+}
+```
+
+<Note>
+The OpenCart API uses passwordless authentication for API sessions. Customer identity is established through the API credentials rather than customer passwords.
+</Note>
+
+## Session Verification
+
+Verify customer is logged in before operations:
+
+```php
+function verifyCustomerSession() {
+    if (!isset($this->session->data['customer'])) {
+        return [
+            'error' => 'Customer session required. Please set customer data first.'
+        ];
+    }
+    
+    return ['success' => true];
+}
+
+// Use in API endpoints
+public function checkout() {
+    $verification = $this->verifyCustomerSession();
+    
+    if (isset($verification['error'])) {
+        return $verification;
+    }
+    
+    // Proceed with checkout
+    // ...
+}
+```
+
+## Complete Login Flow
+
+```php
+class ApiAuth {
+    public function authenticateAndOrder($customer_data, $order_data) {
+        // Step 1: Initialize session
+        session_start();
+        
+        // Step 2: Authenticate customer
+        $auth_response = $this->load->controller('api/customer', $customer_data);
+        
+        if (isset($auth_response['error'])) {
+            return ['error' => 'Authentication failed', 'details' => $auth_response['error']];
+        }
+        
+        // Step 3: Verify session
+        if (!isset($this->session->data['customer'])) {
+            return ['error' => 'Session creation failed'];
+        }
+        
+        // Step 4: Process order
+        $order_result = $this->processOrder($order_data);
+        
+        return $order_result;
+    }
+    
+    private function processOrder($data) {
+        // Add products, set addresses, confirm order
+        // All operations use the authenticated session
+        // ...
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Customers API" icon="user" href="/api/sales/customers">
+    Set customer data and login
+  </Card>
+  
+  <Card title="Addresses API" icon="location-dot" href="/api/account/addresses">
+    Manage customer addresses
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn about API authentication
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create orders with authenticated session
+  </Card>
+</CardGroup>

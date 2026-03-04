@@ -1,0 +1,479 @@
+---
+title: Categories API
+description: Access and navigate product categories in the OpenCart catalog
+---
+
+## Overview
+
+The Categories API allows you to retrieve category information and navigate the category tree structure. Categories organize products into hierarchical groups for easy browsing and filtering.
+
+## Get Category
+
+Retrieve detailed information about a specific category.
+
+### Method
+
+```php
+$this->load->model('catalog/category');
+$category_info = $this->model_catalog_category->getCategory($category_id);
+```
+
+### Parameters
+
+<ParamField path="category_id" type="integer" required>
+  The unique identifier of the category
+</ParamField>
+
+### Response
+
+<ResponseField name="category_id" type="integer">
+  Unique category identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Category name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Category description
+</ResponseField>
+
+<ResponseField name="meta_title" type="string">
+  SEO meta title
+</ResponseField>
+
+<ResponseField name="meta_description" type="string">
+  SEO meta description
+</ResponseField>
+
+<ResponseField name="meta_keyword" type="string">
+  SEO meta keywords
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  Category image path
+</ResponseField>
+
+<ResponseField name="parent_id" type="integer">
+  Parent category ID (0 for root categories)
+</ResponseField>
+
+<ResponseField name="top" type="boolean">
+  Whether category appears in top menu
+</ResponseField>
+
+<ResponseField name="column" type="integer">
+  Number of columns for subcategories display
+</ResponseField>
+
+<ResponseField name="sort_order" type="integer">
+  Display sort order
+</ResponseField>
+
+<ResponseField name="status" type="boolean">
+  Category enabled status
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "category_id": 20,
+  "name": "Electronics",
+  "description": "<p>Browse our wide selection of electronics...</p>",
+  "meta_title": "Electronics | Your Store",
+  "meta_description": "Shop the latest electronics...",
+  "meta_keyword": "electronics, gadgets, tech",
+  "image": "catalog/categories/electronics.jpg",
+  "parent_id": 0,
+  "top": true,
+  "column": 1,
+  "sort_order": 1,
+  "status": true
+}
+```
+
+## Get Categories
+
+Retrieve a list of categories, optionally filtered by parent category.
+
+### Method
+
+```php
+$this->load->model('catalog/category');
+$categories = $this->model_catalog_category->getCategories($parent_id);
+```
+
+### Parameters
+
+<ParamField path="parent_id" type="integer" default={0}>
+  Parent category ID (0 for root categories)
+</ParamField>
+
+### Response
+
+Returns an array of category objects.
+
+### Example: Get Root Categories
+
+```php
+$this->load->model('catalog/category');
+
+// Get root categories
+$categories = $this->model_catalog_category->getCategories(0);
+
+foreach ($categories as $category) {
+    echo $category['name'] . '\n';
+    
+    // Get subcategories
+    $subcategories = $this->model_catalog_category->getCategories($category['category_id']);
+    
+    foreach ($subcategories as $subcategory) {
+        echo '  - ' . $subcategory['name'] . '\n';
+    }
+}
+```
+
+### Example Response
+
+```json
+[
+  {
+    "category_id": 20,
+    "name": "Electronics",
+    "image": "catalog/categories/electronics.jpg",
+    "parent_id": 0,
+    "sort_order": 1,
+    "status": true
+  },
+  {
+    "category_id": 18,
+    "name": "Laptops & Notebooks",
+    "image": "catalog/categories/laptops.jpg",
+    "parent_id": 0,
+    "sort_order": 2,
+    "status": true
+  },
+  {
+    "category_id": 25,
+    "name": "Components",
+    "image": "catalog/categories/components.jpg",
+    "parent_id": 0,
+    "sort_order": 3,
+    "status": true
+  }
+]
+```
+
+## Get Category Filters
+
+Retrieve available filters for products in a category.
+
+### Method
+
+```php
+$this->load->model('catalog/category');
+$filters = $this->model_catalog_category->getFilters($category_id);
+```
+
+### Parameters
+
+<ParamField path="category_id" type="integer" required>
+  Category ID to get filters for
+</ParamField>
+
+### Response
+
+<ResponseField name="filter_group_id" type="integer">
+  Filter group identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Filter group name (e.g., "Brand", "Price Range")
+</ResponseField>
+
+<ResponseField name="filter" type="array">
+  Array of filter options
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "filter_group_id": 1,
+    "name": "Brand",
+    "sort_order": 0,
+    "filter": [
+      {
+        "filter_id": 1,
+        "name": "Apple",
+        "sort_order": 0
+      },
+      {
+        "filter_id": 2,
+        "name": "Samsung",
+        "sort_order": 1
+      },
+      {
+        "filter_id": 3,
+        "name": "Sony",
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "filter_group_id": 2,
+    "name": "Screen Size",
+    "sort_order": 1,
+    "filter": [
+      {
+        "filter_id": 10,
+        "name": "13 inch",
+        "sort_order": 0
+      },
+      {
+        "filter_id": 11,
+        "name": "15 inch",
+        "sort_order": 1
+      },
+      {
+        "filter_id": 12,
+        "name": "17 inch",
+        "sort_order": 2
+      }
+    ]
+  }
+]
+```
+
+## Category Tree Structure
+
+Build a complete category tree with all levels.
+
+### Example: Build Category Tree
+
+```php
+function buildCategoryTree($parent_id = 0, $level = 0) {
+    $this->load->model('catalog/category');
+    
+    $categories = $this->model_catalog_category->getCategories($parent_id);
+    $tree = [];
+    
+    foreach ($categories as $category) {
+        $category['level'] = $level;
+        $category['children'] = buildCategoryTree($category['category_id'], $level + 1);
+        $tree[] = $category;
+    }
+    
+    return $tree;
+}
+
+// Get complete tree
+$category_tree = buildCategoryTree(0, 0);
+```
+
+### Example Tree Output
+
+```json
+[
+  {
+    "category_id": 20,
+    "name": "Electronics",
+    "level": 0,
+    "children": [
+      {
+        "category_id": 26,
+        "name": "PC",
+        "level": 1,
+        "children": [
+          {
+            "category_id": 27,
+            "name": "Mac",
+            "level": 2,
+            "children": []
+          }
+        ]
+      },
+      {
+        "category_id": 28,
+        "name": "Cameras",
+        "level": 1,
+        "children": []
+      }
+    ]
+  }
+]
+```
+
+## Get Products by Category
+
+Retrieve products that belong to a specific category.
+
+### Example
+
+```php
+$this->load->model('catalog/product');
+
+$data = [
+    'filter_category_id' => 20,
+    'filter_sub_category' => true, // Include subcategories
+    'sort' => 'p.sort_order',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+$total = $this->model_catalog_product->getTotalProducts($data);
+```
+
+<Note>
+Set `filter_sub_category` to `true` to include products from all subcategories in the results.
+</Note>
+
+## Filter Products by Category Filters
+
+Apply category filters to narrow down product results.
+
+### Example
+
+```php
+$this->load->model('catalog/product');
+
+$data = [
+    'filter_category_id' => 20,
+    'filter_filter' => '1,2,10', // Comma-separated filter IDs
+    'sort' => 'pd.name',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+```
+
+## Category Navigation Example
+
+### Build Breadcrumb Navigation
+
+```php
+function getCategoryPath($category_id) {
+    $this->load->model('catalog/category');
+    
+    $path = [];
+    $current_id = $category_id;
+    
+    while ($current_id > 0) {
+        $category = $this->model_catalog_category->getCategory($current_id);
+        
+        if ($category) {
+            array_unshift($path, [
+                'category_id' => $category['category_id'],
+                'name' => $category['name']
+            ]);
+            
+            $current_id = $category['parent_id'];
+        } else {
+            break;
+        }
+    }
+    
+    return $path;
+}
+
+// Example: Get breadcrumb for category 27 (Mac)
+$breadcrumb = getCategoryPath(27);
+
+// Result:
+// [
+//   { "category_id": 20, "name": "Electronics" },
+//   { "category_id": 26, "name": "PC" },
+//   { "category_id": 27, "name": "Mac" }
+// ]
+```
+
+## Category Status
+
+<Warning>
+Only categories with `status = 1` (enabled) are returned by the API. Disabled categories and their products are not accessible through the catalog.
+</Warning>
+
+## Complete Category Information Example
+
+```php
+$this->load->model('catalog/category');
+$this->load->model('catalog/product');
+
+$category_id = 20;
+
+// Get category details
+$category = $this->model_catalog_category->getCategory($category_id);
+
+if ($category) {
+    // Get subcategories
+    $subcategories = $this->model_catalog_category->getCategories($category_id);
+    
+    // Get filters
+    $filters = $this->model_catalog_category->getFilters($category_id);
+    
+    // Get products in category
+    $products = $this->model_catalog_product->getProducts([
+        'filter_category_id' => $category_id,
+        'limit' => 20
+    ]);
+    
+    // Get product count
+    $product_count = $this->model_catalog_product->getTotalProducts([
+        'filter_category_id' => $category_id
+    ]);
+    
+    $response = [
+        'category' => $category,
+        'subcategories' => $subcategories,
+        'filters' => $filters,
+        'products' => $products,
+        'product_count' => $product_count
+    ];
+}
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Category Navigation Menu">
+    Build a hierarchical navigation menu by recursively fetching categories starting from root level (parent_id = 0).
+  </Accordion>
+  
+  <Accordion title="Category Landing Pages">
+    Display category information, subcategories, filters, and products for a complete category browsing experience.
+  </Accordion>
+  
+  <Accordion title="Product Filtering">
+    Apply category filters to help customers narrow down product selections based on attributes like brand, size, color, etc.
+  </Accordion>
+  
+  <Accordion title="Breadcrumb Navigation">
+    Build breadcrumb trails by traversing the category path from child to root category.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    Retrieve product information
+  </Card>
+  
+  <Card title="Manufacturers API" icon="industry" href="/api/catalog/manufacturers">
+    Filter by manufacturer
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Add products to cart
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create and manage orders
+  </Card>
+</CardGroup>

@@ -1,0 +1,194 @@
+---
+title: "Creating Custom Themes"
+description: "Design and develop custom OpenCart themes with Twig templates and responsive layouts"
+---
+
+## Overview
+
+Themes control the visual appearance of your OpenCart store. They consist of Twig templates, CSS stylesheets, JavaScript files, and images.
+
+## Theme Structure
+
+```
+extension/mytheme/
+├── catalog/
+│   └── view/
+│       ├── template/
+│       │   ├── common/
+│       │   │   ├── header.twig
+│       │   │   ├── footer.twig
+│       │   │   └── home.twig
+│       │   ├── product/
+│       │   │   ├── product.twig
+│       │   │   └── category.twig
+│       │   └── checkout/
+│       │       └── checkout.twig
+│       ├── stylesheet/
+│       │   └── mytheme.css
+│       ├── javascript/
+│       │   └── mytheme.js
+│       └── image/
+│           └── logo.png
+└── install.json
+```
+
+## Twig Templates
+
+### Common Header
+
+```twig
+<!DOCTYPE html>
+<html dir="{{ direction }}" lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <base href="{{ base }}" />
+    
+    {% if description %}
+    <meta name="description" content="{{ description }}" />
+    {% endif %}
+    
+    {% if keywords %}
+    <meta name="keywords" content="{{ keywords }}" />
+    {% endif %}
+    
+    {{ styles }}
+    {{ scripts }}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <a href="{{ home }}">
+                    <img src="{{ logo }}" alt="{{ name }}" />
+                </a>
+            </div>
+            
+            {{ search }}
+            {{ cart }}
+            {{ menu }}
+        </div>
+    </header>
+```
+
+### Product Page
+
+```twig
+{{ header }}
+
+<div class="container product-page">
+    <h1>{{ heading_title }}</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="product-images">
+                <img src="{{ image }}" alt="{{ heading_title }}" class="img-responsive" />
+                
+                {% if images %}
+                    <div class="thumbnails">
+                        {% for image in images %}
+                            <img src="{{ image.thumb }}" alt="{{ heading_title }}" />
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="product-info">
+                {% if price %}
+                    <div class="price">
+                        {% if special %}
+                            <span class="price-old">{{ price }}</span>
+                            <span class="price-new">{{ special }}</span>
+                        {% else %}
+                            <span class="price-tag">{{ price }}</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <div class="description">
+                    {{ description }}
+                </div>
+                
+                <div class="add-to-cart">
+                    <input type="number" name="quantity" value="1" min="1" />
+                    <button type="button" id="button-cart">{{ button_cart }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ footer }}
+```
+
+## Stylesheet
+
+```css
+/* mytheme.css */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --text-color: #333;
+    --background-color: #f8f9fa;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+header {
+    background-color: var(--primary-color);
+    padding: 20px 0;
+}
+
+.product-page h1 {
+    color: var(--primary-color);
+    margin-bottom: 30px;
+}
+
+.price-old {
+    text-decoration: line-through;
+    color: #999;
+    margin-right: 10px;
+}
+
+.price-new {
+    color: var(--secondary-color);
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+#button-cart {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 10px 30px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+```
+
+## Theme Configuration
+
+Set theme in admin panel or config:
+
+```php
+define('DIR_CATALOG', DIR_OPENCART . 'catalog/');
+define('DIR_TEMPLATE', DIR_CATALOG . 'view/template/');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Library" icon="key" href="/development/libraries/session">
+    Manage session data
+  </Card>
+  <Card title="Database Library" icon="database" href="/development/libraries/database">
+    Database operations
+  </Card>
+</CardGroup>

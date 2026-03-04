@@ -1,122 +1,177 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "OpenCart",
+  "theme": "linden",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#70c3d5",
+    "light": "#b1e3ea",
+    "dark": "#19c1e8"
   },
-  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "https://media.brand.dev/118159a7-f2df-4cb4-813b-15b23da65121.png",
+    "dark": "https://media.brand.dev/7c2ce3cf-4cf4-4e44-b8a0-ab72a520360c.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/opencart/opencart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/opencart/opencart",
+      "website": "https://www.opencart.com"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
+              "installation",
               "quickstart",
-              "development"
+              "upgrading"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Store Management",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "store/catalog",
+              "store/products",
+              "store/categories",
+              "store/orders",
+              "store/customers"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Design & Layout",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "design/themes",
+              "design/layouts",
+              "design/banners",
+              "design/seo"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Extensions",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "extensions/overview",
+              "extensions/modules",
+              "extensions/payments",
+              "extensions/shipping",
+              "extensions/themes"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/localization",
+              "configuration/users",
+              "configuration/system"
+            ]
+          },
+          {
+            "group": "Marketing",
+            "pages": [
+              "marketing/coupons",
+              "marketing/affiliates",
+              "marketing/newsletters"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Development",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Getting Started",
             "pages": [
-              "api-reference/introduction"
+              "development/architecture",
+              "development/setup",
+              "development/standards"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Core Concepts",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "development/mvc-pattern",
+              "development/routing",
+              "development/database",
+              "development/events"
+            ]
+          },
+          {
+            "group": "Building Extensions",
+            "pages": [
+              "development/extension-structure",
+              "development/creating-modules",
+              "development/payment-gateways",
+              "development/shipping-methods",
+              "development/themes"
+            ]
+          },
+          {
+            "group": "System Libraries",
+            "pages": [
+              "development/libraries/cart",
+              "development/libraries/database",
+              "development/libraries/session",
+              "development/libraries/cache"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/errors"
+            ]
+          },
+          {
+            "group": "Catalog API",
+            "pages": [
+              "api/catalog/products",
+              "api/catalog/categories",
+              "api/catalog/manufacturers"
+            ]
+          },
+          {
+            "group": "Sales API",
+            "pages": [
+              "api/sales/cart",
+              "api/sales/orders",
+              "api/sales/customers",
+              "api/sales/checkout"
+            ]
+          },
+          {
+            "group": "Account API",
+            "pages": [
+              "api/account/login",
+              "api/account/addresses",
+              "api/account/wishlists"
+            ]
+          },
+          {
+            "group": "Localization API",
+            "pages": [
+              "api/localization/currencies",
+              "api/localization/countries",
+              "api/localization/zones"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

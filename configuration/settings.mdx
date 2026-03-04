@@ -1,0 +1,290 @@
+---
+title: "Store Settings"
+description: "Configure your OpenCart store settings including general information, themes, and operational parameters"
+---
+
+## Overview
+
+OpenCart's store settings control the core configuration of your ecommerce platform. These settings affect everything from your store's basic information to operational parameters like checkout options, security, and performance.
+
+<Note>
+Access store settings from the admin panel: **System → Settings → Edit** (for your store).
+</Note>
+
+## General Settings
+
+### Store Details
+
+Configure your store's basic information that appears throughout the site.
+
+```php
+// From setting.php:46-78
+$data['config_name'] = $this->config->get('config_name');
+$data['config_owner'] = $this->config->get('config_owner');
+$data['config_address'] = $this->config->get('config_address');
+$data['config_email'] = $this->config->get('config_email');
+$data['config_telephone'] = $this->config->get('config_telephone');
+$data['config_image'] = $this->config->get('config_image');
+```
+
+<Accordion title="Store Detail Fields">
+**Store Name** (`config_name`) - Your store's display name
+
+**Owner** (`config_owner`) - Legal owner name for invoices and documentation
+
+**Address** (`config_address`) - Physical store address
+
+**Email** (`config_email`) - Primary contact email for customer notifications
+
+**Telephone** (`config_telephone`) - Customer support phone number
+
+**Store Logo** (`config_image`) - Main logo image displayed in header
+</Accordion>
+
+### Theme and Layout
+
+Select your store's theme and default layout.
+
+```php
+// From setting.php:66-73
+$data['config_theme'] = $this->config->get('config_theme');
+$data['config_layout_id'] = $this->config->get('config_layout_id');
+```
+
+<Steps>
+  <Step title="Select Theme">
+    Choose from installed theme extensions. The default theme is "basic".
+  </Step>
+  
+  <Step title="Set Default Layout">
+    Select the default layout template for your store pages.
+  </Step>
+</Steps>
+
+## Checkout Settings
+
+### Order Status Configuration
+
+Define default order statuses for various stages of order processing.
+
+<CardGroup cols={2}>
+  <Card title="Default Order Status" icon="clipboard-list">
+    Status assigned to new orders when created.
+  </Card>
+  
+  <Card title="Processing Status" icon="gear">
+    Status for orders being prepared for shipment.
+  </Card>
+  
+  <Card title="Complete Status" icon="check-circle">
+    Status for fulfilled orders.
+  </Card>
+  
+  <Card title="Fraud Status" icon="shield-halved">
+    Status for orders flagged by fraud detection.
+  </Card>
+</CardGroup>
+
+### Checkout Options
+
+Configure the checkout experience for customers.
+
+<Accordion title="Guest Checkout">
+Allow customers to checkout without creating an account. Recommended for reducing cart abandonment.
+</Accordion>
+
+<Accordion title="Terms & Conditions">
+Require customers to agree to terms before completing purchase. Select an information page to use as your terms.
+</Accordion>
+
+<Accordion title="Invoice Prefix">
+Set a prefix for invoice numbers (e.g., "INV-2024-").
+</Accordion>
+
+## Inventory Settings
+
+### Stock Management
+
+Control how inventory is tracked and displayed.
+
+```php
+// Stock configuration options
+$data['config_stock_display'] = $this->config->get('config_stock_display');
+$data['config_stock_warning'] = $this->config->get('config_stock_warning');
+$data['config_stock_checkout'] = $this->config->get('config_stock_checkout');
+```
+
+<Note>
+**Stock Display**: Show/hide stock quantities on product pages
+
+**Stock Warning**: Display "Out of Stock" message when quantity is low
+
+**Stock Checkout**: Allow checkout even when items are out of stock
+</Note>
+
+## Image Settings
+
+Define default image dimensions for various contexts.
+
+| Image Type | Width | Height | Setting Name |
+|------------|-------|--------|-------------|
+| Category | 80px | 80px | `config_image_category_width` / `height` |
+| Product (Thumb) | 228px | 228px | `config_image_thumb_width` / `height` |
+| Product (Popup) | 500px | 500px | `config_image_popup_width` / `height` |
+| Product (List) | 200px | 200px | `config_image_product_width` / `height` |
+| Cart | 47px | 47px | `config_image_cart_width` / `height` |
+
+<Tip>
+Use consistent aspect ratios across all product images for a professional appearance.
+</Tip>
+
+## Email Settings
+
+### SMTP Configuration
+
+Configure email delivery using SMTP for reliable transactional emails.
+
+<Steps>
+  <Step title="Select Mail Protocol">
+    Choose between Mail, SMTP, or Sendmail.
+  </Step>
+  
+  <Step title="Enter SMTP Details">
+    Provide hostname, port, username, and password for your SMTP server.
+    
+    ```text
+    SMTP Host: smtp.gmail.com
+    SMTP Port: 587 (TLS) or 465 (SSL)
+    SMTP Username: your-email@gmail.com
+    SMTP Password: your-app-password
+    ```
+  </Step>
+  
+  <Step title="Test Email">
+    Send a test order or registration email to verify configuration.
+  </Step>
+</Steps>
+
+<Warning>
+Never use basic passwords for SMTP. Use app-specific passwords or OAuth when available.
+</Warning>
+
+## Security Settings
+
+### Encryption Key
+
+OpenCart uses an encryption key for sensitive data. This is set during installation in `config.php`.
+
+```php
+// config.php
+define('DB_ENCRYPTION', 'your-encryption-key');
+```
+
+<Warning>
+**Never share your encryption key** and back it up securely. Loss of this key means encrypted data cannot be recovered.
+</Warning>
+
+### Admin Security
+
+Security best practices for your admin panel.
+
+<CardGroup cols={2}>
+  <Card title="Change Admin Path" icon="lock">
+    Rename the `/admin` directory to something unique to prevent automated attacks.
+  </Card>
+  
+  <Card title="Strong Passwords" icon="key">
+    Require complex passwords for all admin users.
+  </Card>
+  
+  <Card title="Limit Login Attempts" icon="shield">
+    Configure fraud detection to block repeated failed logins.
+  </Card>
+  
+  <Card title="Use HTTPS" icon="shield-halved">
+    Enable SSL/TLS for secure connections to admin and checkout.
+  </Card>
+</CardGroup>
+
+## Performance Settings
+
+### Caching
+
+Enable caching to improve page load times.
+
+<Tabs>
+  <Tab title="File Cache">
+    Basic file-based caching. No additional setup required.
+    
+    ```php
+    // system/library/cache/file.php
+    public function set(string $key, $value, int $expire = 3600): void
+    ```
+  </Tab>
+  
+  <Tab title="Redis">
+    High-performance caching using Redis.
+    
+    Requires Redis server installation and PHP Redis extension.
+  </Tab>
+  
+  <Tab title="Memcached">
+    Distributed caching with Memcached.
+    
+    Requires Memcached server and PHP Memcached extension.
+  </Tab>
+</Tabs>
+
+### Compression
+
+Enable GZIP compression to reduce bandwidth usage.
+
+<Note>
+Compression can be enabled in OpenCart settings or at the web server level (recommended).
+</Note>
+
+## Maintenance Mode
+
+Enable maintenance mode to show a "store offline" message while performing updates.
+
+```php
+$data['config_maintenance'] = $this->config->get('config_maintenance');
+```
+
+<Steps>
+  <Step title="Enable Maintenance Mode">
+    Toggle maintenance mode on in store settings.
+  </Step>
+  
+  <Step title="Perform Updates">
+    Update extensions, themes, or perform system maintenance.
+  </Step>
+  
+  <Step title="Test Store">
+    Admin users can still access the storefront to test changes.
+  </Step>
+  
+  <Step title="Disable Maintenance Mode">
+    Turn off maintenance mode to restore customer access.
+  </Step>
+</Steps>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Localization" icon="globe" href="/configuration/localization">
+    Configure languages, currencies, and regional settings
+  </Card>
+  
+  <Card title="Users" icon="users" href="/configuration/users">
+    Manage admin users and permissions
+  </Card>
+  
+  <Card title="System" icon="server" href="/configuration/system">
+    System maintenance and tools
+  </Card>
+  
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Install and configure extensions
+  </Card>
+</CardGroup>

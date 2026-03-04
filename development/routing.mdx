@@ -1,0 +1,408 @@
+---
+title: "Routing and Controllers"
+description: "Understand how OpenCart's routing system maps URLs to controllers and handles request flow"
+---
+
+## Overview
+
+OpenCart uses a simple yet powerful routing system based on the `route` parameter. Routes map directly to controller file paths and methods.
+
+## Route Structure
+
+### Basic Route Format
+
+```
+route={path}/{controller}.{method}
+```
+
+- **Path**: Directory structure under `controller/`
+- **Controller**: PHP class name
+- **Method**: Controller method (defaults to `index`)
+
+### Examples
+
+| URL | Route | File | Method |
+|-----|-------|------|--------|
+| `?route=product/product&product_id=50` | `product/product` | `catalog/controller/product/product.php` | `index()` |
+| `?route=checkout/cart.add` | `checkout/cart.add` | `catalog/controller/checkout/cart.php` | `add()` |
+| `?route=account/order.info` | `account/order.info` | `catalog/controller/account/order.php` | `info()` |
+| `?route=common/home` | `common/home` | `catalog/controller/common/home.php` | `index()` |
+
+## Route Resolution
+
+The **Loader** class (`system/engine/loader.php:69`) handles route resolution:
+
+```php
+public function controller(string $route, ...$args) {
+    // Sanitize the call
+    $route = preg_replace('/[^a-zA-Z0-9_|\/\.]/', '', str_replace('|', '.', $route));
+    
+    $trigger = $route;
+    
+    $pos = strrpos($route, '.');
+    
+    if ($pos !== false) {
+        $controller = substr($route, 0, $pos);
+        $method = substr($route, $pos + 1);
+    } else {
+        $controller = $route;
+        $method = 'index';
+    }
+    
+    // Create a new key to store the model object
+    $key = 'fallback_controller_' . str_replace('/', '_', $controller);
+    
+    if (!$this->registry->has($key)) {
+        $object = $this->factory->controller($controller);
+    } else {
+        $object = $this->registry->get($key);
+    }
+    
+    // Trigger events
+    $this->event->trigger('controller/' . $trigger . '/before', [&$route, &$args]);
+    
+    $callable = [$object, $method];
+    $output = $callable(...$args);
+    
+    $this->event->trigger('controller/' . $trigger . '/after', [&$route, &$args, &$output]);
+    
+    return $output;
+}
+```
+
+## Creating Routes
+
+### 1. Create Controller File
+
+Create a file matching your desired route structure:
+
+```php catalog/controller/product/category.php
+<?php
+namespace Opencart\Catalog\Controller\Product;
+
+class Category extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        // Route: product/category
+        $this->response->setOutput('Category page');
+    }
+    
+    public function list(): void {
+        // Route: product/category.list
+        $this->response->setOutput('Category list');
+    }
+}
+```
+
+### 2. Access Via URL
+
+```
+# Default method (index)
+https://example.com/index.php?route=product/category
+
+# Specific method
+https://example.com/index.php?route=product/category.list
+```
+
+### 3. SEO-Friendly URLs
+
+With URL rewriting enabled (`.htaccess`):
+
+```
+# Before
+https://example.com/index.php?route=product/product&product_id=50
+
+# After
+https://example.com/product/product?product_id=50
+```
+
+## Controller Methods
+
+### Public vs Private Methods
+
+<CodeGroup>
+```php Public Methods
+class Product extends \Opencart\System\Engine\Controller {
+    // ✅ Accessible via route
+    public function index(): void {
+        // route: product/product
+    }
+    
+    public function review(): void {
+        // route: product/product.review
+    }
+}
+```
+
+```php Private Methods
+class Product extends \Opencart\System\Engine\Controller {
+    // ❌ Not accessible via route
+    private function validateProduct(int $product_id): bool {
+        // Helper method - internal only
+        return true;
+    }
+    
+    protected function getProductData(int $product_id): array {
+        // Protected helper - not routable
+        return [];
+    }
+}
+```
+</CodeGroup>
+
+<Warning>
+Magic methods (starting with `__`) are **blocked** for security:
+```php
+// ❌ Blocked by router
+public function __construct() { }
+public function __destruct() { }
+```
+</Warning>
+
+## Route Parameters
+
+### Query Parameters
+
+Access via `$this->request->get`:
+
+```php
+// URL: ?route=product/product&product_id=50&category_id=20
+public function index(): void {
+    $product_id = isset($this->request->get['product_id']) 
+        ? (int)$this->request->get['product_id'] 
+        : 0;
+    
+    $category_id = isset($this->request->get['category_id']) 
+        ? (int)$this->request->get['category_id'] 
+        : 0;
+}
+```
+
+### Method Arguments
+
+Pass arguments when loading controllers:
+
+```php
+// From another controller
+$output = $this->load->controller('product/product', $product_id, $options);
+```
+
+```php
+// In the target controller
+public function index(int $product_id = 0, array $options = []): void {
+    // Use $product_id and $options
+}
+```
+
+## Internal Routing
+
+### Loading Sub-Controllers
+
+Controllers can load other controllers:
+
+```php
+public function index(): void {
+    // Load header
+    $data['header'] = $this->load->controller('common/header');
+    
+    // Load footer
+    $data['footer'] = $this->load->controller('common/footer');
+    
+    // Load column (with parameters)
+    $data['column_left'] = $this->load->controller('common/column_left');
+    
+    $this->response->setOutput($this->load->view('product/product', $data));
+}
+```
+
+### Action Objects
+
+Return `Action` objects for redirection:
+
+```php
+public function index() {
+    $product_id = (int)$this->request->get['product_id'];
+    
+    $this->load->model('catalog/product');
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    if (!$product_info) {
+        // Route to error page
+        return new \Opencart\System\Engine\Action('error/not_found');
+    }
+    
+    // Continue processing
+    $data['product'] = $product_info;
+    $this->response->setOutput($this->load->view('product/product', $data));
+}
+```
+
+## Admin vs Catalog Routes
+
+### Catalog Routes
+
+Standard storefront routing:
+
+```
+catalog/controller/{path}/{controller}.php
+→ route={path}/{controller}
+```
+
+Example:
+```
+catalog/controller/account/login.php
+→ route=account/login
+```
+
+### Admin Routes
+
+Admin panel routing (same structure):
+
+```
+admin/controller/{path}/{controller}.php
+→ route={path}/{controller}
+```
+
+Example:
+```
+admin/controller/sale/order.php
+→ route=sale/order
+```
+
+<Note>
+Admin routes require authentication and use `user_token` parameter for security.
+</Note>
+
+## Extension Routes
+
+Extension controllers use extended paths:
+
+```
+extension/{vendor}/{context}/controller/{type}/{name}.php
+→ route=extension/{vendor}/{type}/{name}
+```
+
+### Example: Payment Extension
+
+```php catalog/controller/extension/opencart/payment/bank_transfer.php
+<?php
+namespace Opencart\Catalog\Controller\Extension\Opencart\Payment;
+
+class BankTransfer extends \Opencart\System\Engine\Controller {
+    public function index(): string {
+        // Route: extension/opencart/payment/bank_transfer
+        $this->load->language('extension/opencart/payment/bank_transfer');
+        
+        $data['bank'] = $this->config->get('payment_bank_transfer_bank');
+        
+        return $this->load->view('extension/opencart/payment/bank_transfer', $data);
+    }
+    
+    public function confirm(): void {
+        // Route: extension/opencart/payment/bank_transfer.confirm
+        // Process payment confirmation
+    }
+}
+```
+
+## Router Configuration
+
+### Default Route
+
+Set in `config.php`:
+
+```php
+define('HTTP_SERVER', 'https://example.com/');
+```
+
+### Custom Error Routes
+
+```php
+// In controller
+if (!$product_info) {
+    return new \Opencart\System\Engine\Action('error/not_found');
+}
+```
+
+```php catalog/controller/error/not_found.php
+<?php
+namespace Opencart\Catalog\Controller\Error;
+
+class NotFound extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->response->addHeader('HTTP/1.1 404 Not Found');
+        
+        $this->document->setTitle($this->language->get('text_error'));
+        
+        $data['header'] = $this->load->controller('common/header');
+        $data['footer'] = $this->load->controller('common/footer');
+        
+        $this->response->setOutput($this->load->view('error/not_found', $data));
+    }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="Keep Routes RESTful">
+Use descriptive method names that indicate actions:
+
+```php
+class Order extends \Opencart\System\Engine\Controller {
+    public function index(): void { }      // List orders
+    public function info(): void { }       // View single order
+    public function add(): void { }        // Create order
+    public function edit(): void { }       // Update order
+    public function delete(): void { }     // Delete order
+}
+```
+</Accordion>
+
+<Accordion title="Validate Input">
+Always validate route parameters:
+
+```php
+public function index(): void {
+    if (isset($this->request->get['product_id'])) {
+        $product_id = (int)$this->request->get['product_id'];
+    } else {
+        $product_id = 0;
+    }
+    
+    if (!$product_id) {
+        return new \Opencart\System\Engine\Action('error/not_found');
+    }
+}
+```
+</Accordion>
+
+<Accordion title="Use Events for Cross-Cutting">
+Instead of modifying routes, use events:
+
+```php
+// In extension install
+$this->model_setting_event->addEvent(
+    'my_extension',
+    'catalog/controller/product/product/before',
+    'extension/myvendor/module/myextension.beforeProduct'
+);
+```
+</Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database & Models" icon="database" href="/development/database">
+    Work with data and models
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Hook into controller events
+  </Card>
+  <Card title="Creating Modules" icon="cube" href="/development/creating-modules">
+    Build custom modules
+  </Card>
+  <Card title="MVC Pattern" icon="diagram-project" href="/development/mvc-pattern">
+    Review MVC architecture
+  </Card>
+</CardGroup>

@@ -1,0 +1,170 @@
+---
+title: Catalog Management
+description: Manage your OpenCart store catalog including products, categories, manufacturers, and reviews
+---
+
+The Catalog Management section is the heart of your OpenCart store, where you organize and maintain all your products, categories, and related content.
+
+## Overview
+
+OpenCart's catalog system provides comprehensive tools to manage your entire product inventory with support for:
+
+- **Products** - Add, edit, and organize individual products with detailed information
+- **Categories** - Create hierarchical category structures for easy navigation
+- **Manufacturers** - Manage product brands and manufacturers
+- **Reviews** - Monitor and moderate customer product reviews
+- **Attributes** - Define product characteristics and specifications
+- **Options** - Configure product variations (size, color, etc.)
+- **Filters** - Create filtering systems for product searches
+
+## Catalog Components
+
+<CardGroup cols={2}>
+  <Card title="Products" icon="box" href="/store/products">
+    Manage your product inventory with pricing, images, and detailed descriptions
+  </Card>
+  
+  <Card title="Categories" icon="folder-tree" href="/store/categories">
+    Organize products into hierarchical category structures
+  </Card>
+  
+  <Card title="Orders" icon="shopping-cart" href="/store/orders">
+    Process and manage customer orders
+  </Card>
+  
+  <Card title="Customers" icon="users" href="/store/customers">
+    Manage customer accounts and information
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Multi-Language Support
+
+OpenCart supports multiple languages for your catalog content. Each product, category, and attribute can have descriptions in different languages.
+
+```php
+// Product descriptions are stored per language
+$product_description = [
+    1 => [ // English
+        'name' => 'Product Name',
+        'description' => 'Product description',
+        'meta_title' => 'Product Meta Title'
+    ],
+    2 => [ // Spanish
+        'name' => 'Nombre del Producto',
+        'description' => 'Descripción del producto',
+        'meta_title' => 'Título Meta del Producto'
+    ]
+];
+```
+
+### Multi-Store Support
+
+Manage products across multiple stores from a single admin panel. Each product can be assigned to specific stores.
+
+<Note>
+Products must be explicitly assigned to stores. By default, new products are only available in the main store (store_id = 0).
+</Note>
+
+### SEO-Friendly URLs
+
+Create custom SEO URLs for products and categories:
+
+- Products: `https://yourstore.com/product-name`
+- Categories: `https://yourstore.com/category-name`
+- Manufacturers: `https://yourstore.com/brand-name`
+
+<Accordion title="SEO URL Configuration Example">
+```php
+$product_seo_url = [
+    0 => [ // Main store
+        1 => 'laptop-computer', // English URL
+        2 => 'ordenador-portatil' // Spanish URL
+    ]
+];
+```
+</Accordion>
+
+## Catalog Filters
+
+The catalog system includes powerful filtering capabilities:
+
+- Filter by **name** - Search products by name
+- Filter by **model** - Find products by model number
+- Filter by **category** - View products in specific categories
+- Filter by **manufacturer** - Show products from specific brands
+- Filter by **price range** - Set minimum and maximum prices
+- Filter by **quantity** - Find products by stock levels
+- Filter by **status** - Show enabled or disabled products
+- Filter by **store** - View products for specific stores
+- Filter by **language** - Filter by content language
+
+<Warning>
+Disabling a product will hide it from your storefront but preserve all product data. Use this feature instead of deleting products if you plan to re-enable them later.
+</Warning>
+
+## Managing Catalog Data
+
+### Bulk Operations
+
+Perform actions on multiple items simultaneously:
+
+- **Enable/Disable** - Toggle product or category status
+- **Delete** - Remove multiple items at once
+- **Copy** - Duplicate products with all settings
+
+### Data Export/Import
+
+<Note>
+OpenCart supports exporting and importing catalog data through extensions and built-in tools. Always backup your data before performing bulk import operations.
+</Note>
+
+## Best Practices
+
+1. **Use descriptive product names** - Include key features and brand names
+2. **Organize categories logically** - Create a clear hierarchy that customers can navigate easily
+3. **Add high-quality images** - Upload multiple product images from different angles
+4. **Write detailed descriptions** - Include specifications, features, and benefits
+5. **Set accurate stock levels** - Enable stock tracking and set appropriate quantities
+6. **Use SEO-friendly URLs** - Create readable, keyword-rich URLs for better search engine visibility
+7. **Configure product options** - Set up size, color, and other variations properly
+8. **Add product attributes** - Define specifications that help customers compare products
+
+## Related Documentation
+
+- [Product Management](/store/products) - Detailed product management guide
+- [Category Management](/store/categories) - Organizing your catalog structure
+- [Order Processing](/store/orders) - Managing customer orders
+- [Customer Management](/store/customers) - Managing customer accounts
+
+## Technical Details
+
+### Controller Locations
+
+Catalog controllers are located in:
+```
+/upload/admin/controller/catalog/
+├── product.php
+├── category.php
+├── manufacturer.php
+├── review.php
+├── attribute.php
+├── option.php
+└── filter.php
+```
+
+### Model Locations
+
+Catalog models are located in:
+```
+/upload/admin/model/catalog/
+├── product.php
+├── category.php
+├── manufacturer.php
+└── ...
+```
+
+<Note>
+The catalog system uses the MVC (Model-View-Controller) pattern. Controllers handle requests, models manage data operations, and views render the interface.
+</Note>

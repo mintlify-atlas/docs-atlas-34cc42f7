@@ -1,97 +1,275 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "OpenCart Documentation"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-br from-[#70c3d5] via-[#19c1e8] to-[#0891b2] dark:from-[#0f1117] dark:via-[#1a1d27] dark:to-[#0f1117] py-20">
+  <div className="absolute inset-0 bg-black/20 dark:bg-black/40"></div>
+  <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white dark:text-gray-100 mb-6">
+          Build Your Online Store with OpenCart
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 dark:text-gray-300 max-w-2xl mb-8">
+          A free, open source e-commerce platform trusted by thousands of merchants worldwide. Everything you need to create, manage, and grow your online business.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/installation" 
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-[#0891b2] dark:bg-[#70c3d5] dark:text-gray-900 font-semibold hover:bg-gray-100 dark:hover:bg-[#19c1e8] transition-colors no-underline"
+          >
+            Get Started
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a 
+            href="/api/overview" 
+            className="inline-flex items-center px-6 py-3 rounded-lg border-2 border-white/30 bg-white/10 text-white dark:border-gray-600 dark:bg-[#242838] dark:text-gray-100 font-semibold hover:bg-white/20 dark:hover:bg-[#2d3142] transition-colors no-underline"
+          >
+            API Reference
+          </a>
+        </div>
+      </div>
+      <div className="hidden lg:block lg:col-span-5">
+        <div className="relative">
+          <img 
+            src="https://media.brand.dev/118159a7-f2df-4cb4-813b-15b23da65121.png" 
+            alt="OpenCart Logo" 
+            className="w-full h-auto max-w-md mx-auto"
+            noZoom
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Quick Start</h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Get your online store up and running in minutes
+    </p>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Install OpenCart">
+      Download OpenCart and upload the files to your web server. Configure your database connection and run the installation wizard.
+      
+      ```bash
+      # Clone the repository
+      git clone https://github.com/opencart/opencart.git
+      cd opencart
+      
+      # Upload the 'upload' folder contents to your web root
+      # Rename config-dist.php to config.php
+      # Visit your domain to start installation
+      ```
+    </Step>
+    
+    <Step title="Configure Your Store">
+      Access the admin panel to set up your store name, logo, currencies, languages, and payment/shipping methods.
+      
+      <Note>
+        Default admin URL: `https://yourdomain.com/admin`
+        
+        Remember to change the default admin directory name for security.
+      </Note>
+    </Step>
+    
+    <Step title="Add Your Products">
+      Start adding products to your catalog with images, descriptions, prices, and inventory tracking. Organize them into categories for easy navigation.
+    </Step>
+    
+    <Step title="Launch Your Store">
+      Configure your theme, set up SEO-friendly URLs, and go live. Monitor orders and manage customers from the admin dashboard.
+      
+      <Tip>
+        Use the built-in extension marketplace to add additional features like advanced analytics, marketing tools, and shipping integrations.
+      </Tip>
+    </Step>
+  </Steps>
+</div>
 
-## Make it yours
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Explore by Topic</h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400">
+      Find what you need to build and manage your store
+    </p>
+  </div>
 
-Design a docs site that looks great and empowers your users.
+  <CardGroup cols={3}>
+    <Card title="Store Management" icon="store" href="/store/catalog">
+      Learn how to manage products, categories, orders, and customers in your online store.
+    </Card>
+    <Card title="Design & Layout" icon="palette" href="/design/themes">
+      Customize your store's appearance with themes, layouts, and banners.
+    </Card>
+    <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+      Extend functionality with modules, payment gateways, shipping methods, and themes.
+    </Card>
+    <Card title="Configuration" icon="gear" href="/configuration/settings">
+      Configure store settings, localization, user permissions, and system options.
+    </Card>
+    <Card title="Marketing" icon="bullhorn" href="/marketing/coupons">
+      Boost sales with coupons, affiliate programs, and email marketing campaigns.
+    </Card>
+    <Card title="Development" icon="code" href="/development/architecture">
+      Build custom extensions and integrate with OpenCart's MVC framework.
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Key Features</h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400">
+      Everything you need for a successful e-commerce store
+    </p>
+  </div>
 
-## Create beautiful pages
+  <div className="grid md:grid-cols-2 gap-6">
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Unlimited Products</h3>
+          <p className="text-gray-600 dark:text-gray-400">Add unlimited products, categories, and manufacturers with no restrictions.</p>
+        </div>
+      </div>
+    </div>
 
-Everything you need to create world-class documentation.
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Multi-Store Support</h3>
+          <p className="text-gray-600 dark:text-gray-400">Manage multiple stores from a single admin interface with shared products.</p>
+        </div>
+      </div>
+    </div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Payment Integrations</h3>
+          <p className="text-gray-600 dark:text-gray-400">Built-in support for popular payment gateways with easy extension options.</p>
+        </div>
+      </div>
+    </div>
 
-## Need inspiration?
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Multi-Language & Currency</h3>
+          <p className="text-gray-600 dark:text-gray-400">Sell globally with support for multiple languages and currencies out of the box.</p>
+        </div>
+      </div>
+    </div>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">SEO Optimized</h3>
+          <p className="text-gray-600 dark:text-gray-400">Built-in SEO features including friendly URLs, meta tags, and sitemaps.</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="p-6 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:border-[#70c3d5] dark:hover:border-[#70c3d5] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-[#70c3d5]/10 dark:bg-[#70c3d5]/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#70c3d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Extension Marketplace</h3>
+          <p className="text-gray-600 dark:text-gray-400">Thousands of extensions available to add new features and functionality.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Developer Resources</h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400">
+      Build powerful extensions and integrations
+    </p>
+  </div>
+
+  <CardGroup cols={2}>
+    <Card title="Architecture Guide" icon="diagram-project" href="/development/architecture">
+      Understand OpenCart's MVC architecture and how the framework is structured.
+    </Card>
+    <Card title="Extension Development" icon="puzzle-piece" href="/development/extension-structure">
+      Learn how to create custom modules, themes, and payment gateways.
+    </Card>
+    <Card title="API Documentation" icon="code" href="/api/overview">
+      Integrate with OpenCart using the RESTful API for programmatic access.
+    </Card>
+    <Card title="System Libraries" icon="book" href="/development/libraries/cart">
+      Explore the core libraries for cart, database, session, and cache management.
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl bg-gradient-to-r from-[#70c3d5] to-[#19c1e8] dark:from-[#1a1d27] dark:to-[#242838] dark:border dark:border-[#27272a] p-8 md:p-12 text-center">
+    <h2 className="text-3xl font-bold text-white dark:text-gray-100 mb-4">
+      Ready to Start Building?
+    </h2>
+    <p className="text-lg text-white/90 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+      Join thousands of merchants who trust OpenCart to power their online stores. Get started today and launch your e-commerce business.
+    </p>
+    <a 
+      href="/installation" 
+      className="inline-flex items-center px-8 py-4 rounded-lg bg-white text-[#0891b2] dark:bg-[#70c3d5] dark:text-gray-900 font-semibold hover:bg-gray-100 dark:hover:bg-[#19c1e8] transition-colors no-underline text-lg"
+    >
+      Install OpenCart Now
+      <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </a>
+  </div>
+</div>

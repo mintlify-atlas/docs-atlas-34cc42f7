@@ -1,0 +1,571 @@
+---
+title: Countries API
+description: Access country information for addresses and localization
+---
+
+## Overview
+
+The Countries API provides access to country data including names, ISO codes, address formats, and postal code requirements. This information is essential for address validation and international shipping.
+
+**Model Location:** `catalog/model/localisation/country.php`
+
+## Get Country
+
+Retrieve information about a specific country by ID.
+
+### Method
+
+```php
+$this->load->model('localisation/country');
+$country_info = $this->model_localisation_country->getCountry($country_id);
+```
+
+### Parameters
+
+<ParamField path="country_id" type="integer" required>
+  Country ID
+</ParamField>
+
+### Response
+
+<ResponseField name="country_id" type="integer">
+  Country identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Country name
+</ResponseField>
+
+<ResponseField name="iso_code_2" type="string">
+  ISO 3166-1 alpha-2 code (2 letters)
+</ResponseField>
+
+<ResponseField name="iso_code_3" type="string">
+  ISO 3166-1 alpha-3 code (3 letters)
+</ResponseField>
+
+<ResponseField name="address_format_id" type="integer">
+  Address format identifier
+</ResponseField>
+
+<ResponseField name="address_format" type="string">
+  Address format template
+</ResponseField>
+
+<ResponseField name="postcode_required" type="boolean">
+  Whether postcode is required
+</ResponseField>
+
+<ResponseField name="status" type="boolean">
+  Country enabled status
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "country_id": 223,
+  "name": "United States",
+  "iso_code_2": "US",
+  "iso_code_3": "USA",
+  "address_format_id": 2,
+  "address_format": "{firstname} {lastname}\n{company}\n{address_1}\n{address_2}\n{city}, {zone} {postcode}\n{country}",
+  "postcode_required": true,
+  "status": true
+}
+```
+
+## Get Country by ISO Code 2
+
+Retrieve country information using 2-letter ISO code.
+
+### Method
+
+```php
+$this->load->model('localisation/country');
+$country_info = $this->model_localisation_country->getCountryByIsoCode2($iso_code_2);
+```
+
+### Parameters
+
+<ParamField path="iso_code_2" type="string" required>
+  2-letter ISO country code (e.g., "US", "GB", "CA")
+</ParamField>
+
+### Example
+
+```php
+$country_info = $this->model_localisation_country->getCountryByIsoCode2('US');
+
+if ($country_info) {
+    echo "Country ID: " . $country_info['country_id'];
+    echo "Name: " . $country_info['name'];
+}
+```
+
+## Get Country by ISO Code 3
+
+Retrieve country information using 3-letter ISO code.
+
+### Method
+
+```php
+$this->load->model('localisation/country');
+$country_info = $this->model_localisation_country->getCountryByIsoCode3($iso_code_3);
+```
+
+### Parameters
+
+<ParamField path="iso_code_3" type="string" required>
+  3-letter ISO country code (e.g., "USA", "GBR", "CAN")
+</ParamField>
+
+### Example
+
+```php
+$country_info = $this->model_localisation_country->getCountryByIsoCode3('USA');
+```
+
+## Get Countries
+
+Retrieve all active countries.
+
+### Method
+
+```php
+$this->load->model('localisation/country');
+$countries = $this->model_localisation_country->getCountries();
+```
+
+### Response
+
+Returns an array of country objects.
+
+### Example Response
+
+```json
+[
+  {
+    "country_id": 223,
+    "name": "United States",
+    "iso_code_2": "US",
+    "iso_code_3": "USA",
+    "address_format_id": 2,
+    "postcode_required": true,
+    "status": true
+  },
+  {
+    "country_id": 222,
+    "name": "United Kingdom",
+    "iso_code_2": "GB",
+    "iso_code_3": "GBR",
+    "address_format_id": 1,
+    "postcode_required": true,
+    "status": true
+  },
+  {
+    "country_id": 38,
+    "name": "Canada",
+    "iso_code_2": "CA",
+    "iso_code_3": "CAN",
+    "address_format_id": 2,
+    "postcode_required": true,
+    "status": true
+  }
+]
+```
+
+## Address Format
+
+Countries have specific address formats for proper display.
+
+### Format Variables
+
+- `{firstname}` - First name
+- `{lastname}` - Last name
+- `{company}` - Company name
+- `{address_1}` - Address line 1
+- `{address_2}` - Address line 2
+- `{city}` - City
+- `{postcode}` - Postal/ZIP code
+- `{zone}` - State/Province/Zone
+- `{zone_code}` - Zone code
+- `{country}` - Country name
+
+### Example Formats
+
+**United States:**
+```
+{firstname} {lastname}
+{company}
+{address_1}
+{address_2}
+{city}, {zone} {postcode}
+{country}
+```
+
+**United Kingdom:**
+```
+{firstname} {lastname}
+{company}
+{address_1}
+{address_2}
+{city}
+{postcode}
+{country}
+```
+
+**Japan:**
+```
+{postcode}
+{zone} {city}
+{address_1}
+{address_2}
+{company}
+{lastname} {firstname}
+{country}
+```
+
+## Format Address
+
+Format an address using country-specific template.
+
+### Example
+
+```php
+function formatAddress($address_data) {
+    $this->load->model('localisation/country');
+    
+    $country_info = $this->model_localisation_country->getCountry(
+        $address_data['country_id']
+    );
+    
+    if ($country_info) {
+        $format = $country_info['address_format'];
+        
+        // Replace format variables
+        $find = [
+            '{firstname}',
+            '{lastname}',
+            '{company}',
+            '{address_1}',
+            '{address_2}',
+            '{city}',
+            '{postcode}',
+            '{zone}',
+            '{zone_code}',
+            '{country}'
+        ];
+        
+        $replace = [
+            $address_data['firstname'],
+            $address_data['lastname'],
+            $address_data['company'],
+            $address_data['address_1'],
+            $address_data['address_2'],
+            $address_data['city'],
+            $address_data['postcode'],
+            $address_data['zone'],
+            $address_data['zone_code'],
+            $country_info['name']
+        ];
+        
+        $formatted = str_replace($find, $replace, $format);
+        
+        // Remove empty lines
+        $formatted = preg_replace('/^\h*\v+/m', '', $formatted);
+        
+        return $formatted;
+    }
+    
+    return '';
+}
+
+// Usage
+$address = [
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'company' => 'Acme Corp',
+    'address_1' => '123 Main Street',
+    'address_2' => 'Suite 100',
+    'city' => 'New York',
+    'postcode' => '10001',
+    'zone' => 'New York',
+    'zone_code' => 'NY',
+    'country_id' => 223
+];
+
+$formatted = formatAddress($address);
+
+echo $formatted;
+/* Output:
+John Doe
+Acme Corp
+123 Main Street
+Suite 100
+New York, New York 10001
+United States
+*/
+```
+
+## Validate Address
+
+Validate address based on country requirements.
+
+### Example
+
+```php
+function validateAddress($address_data) {
+    $this->load->model('localisation/country');
+    
+    $errors = [];
+    
+    $country_info = $this->model_localisation_country->getCountry(
+        $address_data['country_id']
+    );
+    
+    if (!$country_info) {
+        $errors['country'] = 'Please select a country!';
+        return $errors;
+    }
+    
+    // Validate postcode if required
+    if ($country_info['postcode_required'] && 
+        !oc_validate_length($address_data['postcode'], 2, 10)) {
+        $errors['postcode'] = 'Postcode must be between 2 and 10 characters!';
+    }
+    
+    // Validate zones exist for country
+    $this->load->model('localisation/zone');
+    $zone_total = $this->model_localisation_zone->getTotalZonesByCountryId(
+        $address_data['country_id']
+    );
+    
+    if ($zone_total && !$address_data['zone_id']) {
+        $errors['zone'] = 'Please select a region / state!';
+    }
+    
+    return $errors;
+}
+```
+
+## Country Dropdown
+
+Build a country selection dropdown.
+
+### Example
+
+```php
+function getCountryDropdown($selected_country_id = 0) {
+    $this->load->model('localisation/country');
+    
+    $countries = $this->model_localisation_country->getCountries();
+    $options = [];
+    
+    foreach ($countries as $country) {
+        $options[] = [
+            'value' => $country['country_id'],
+            'text' => $country['name'],
+            'iso_code_2' => $country['iso_code_2'],
+            'selected' => $country['country_id'] == $selected_country_id
+        ];
+    }
+    
+    return $options;
+}
+
+$dropdown = getCountryDropdown(223);
+```
+
+### Example Response
+
+```json
+[
+  {
+    "value": 38,
+    "text": "Canada",
+    "iso_code_2": "CA",
+    "selected": false
+  },
+  {
+    "value": 222,
+    "text": "United Kingdom",
+    "iso_code_2": "GB",
+    "selected": false
+  },
+  {
+    "value": 223,
+    "text": "United States",
+    "iso_code_2": "US",
+    "selected": true
+  }
+]
+```
+
+## Get Zones for Country
+
+Retrieve states/provinces for a country.
+
+### Example
+
+```php
+$this->load->model('localisation/zone');
+
+$country_id = 223;  // United States
+$zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+
+foreach ($zones as $zone) {
+    echo $zone['name'] . ' (' . $zone['code'] . ')';
+}
+
+// Output:
+// Alabama (AL)
+// Alaska (AK)
+// Arizona (AZ)
+// ...
+```
+
+## Common Countries
+
+| Country | ID | ISO 2 | ISO 3 | Postcode Required |
+|---------|-------|-------|-------|-------------------|
+| United States | 223 | US | USA | Yes |
+| United Kingdom | 222 | GB | GBR | Yes |
+| Canada | 38 | CA | CAN | Yes |
+| Australia | 13 | AU | AUS | Yes |
+| Germany | 81 | DE | DEU | Yes |
+| France | 74 | FR | FRA | Yes |
+| India | 99 | IN | IND | Yes |
+| China | 44 | CN | CHN | No |
+| Japan | 109 | JP | JPN | Yes |
+| Mexico | 138 | MX | MEX | Yes |
+
+## API Usage Example
+
+```php
+class CountryAPI {
+    public function getCountries() {
+        $this->load->model('localisation/country');
+        
+        $countries = $this->model_localisation_country->getCountries();
+        $data = [];
+        
+        foreach ($countries as $country) {
+            $data[] = [
+                'id' => $country['country_id'],
+                'name' => $country['name'],
+                'iso_2' => $country['iso_code_2'],
+                'iso_3' => $country['iso_code_3'],
+                'postcode_required' => (bool)$country['postcode_required']
+            ];
+        }
+        
+        return ['countries' => $data];
+    }
+    
+    public function getCountryInfo($country_id) {
+        $this->load->model('localisation/country');
+        $this->load->model('localisation/zone');
+        
+        $country = $this->model_localisation_country->getCountry($country_id);
+        
+        if (!$country) {
+            return ['error' => 'Country not found'];
+        }
+        
+        $zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+        
+        return [
+            'country' => [
+                'id' => $country['country_id'],
+                'name' => $country['name'],
+                'iso_2' => $country['iso_code_2'],
+                'iso_3' => $country['iso_code_3'],
+                'postcode_required' => (bool)$country['postcode_required'],
+                'address_format' => $country['address_format']
+            ],
+            'zones' => array_map(function($zone) {
+                return [
+                    'id' => $zone['zone_id'],
+                    'name' => $zone['name'],
+                    'code' => $zone['code']
+                ];
+            }, $zones)
+        ];
+    }
+}
+
+$api = new CountryAPI();
+
+// Get all countries
+$countries = $api->getCountries();
+
+// Get country details with zones
+$us_info = $api->getCountryInfo(223);
+```
+
+## Use in Address Validation
+
+```php
+// From payment_address.php:52-63
+$this->load->model('localisation/country');
+
+$country_info = $this->model_localisation_country->getCountry(
+    $post_info['payment_country_id']
+);
+
+if ($country_info && $country_info['postcode_required'] && 
+    !oc_validate_length($post_info['payment_postcode'], 2, 10)) {
+    $output['error']['payment_postcode'] = 'Postcode must be between 2 and 10 characters!';
+}
+
+if (!$country_info) {
+    $output['error']['payment_country'] = 'Please select a country!';
+}
+```
+
+<Note>
+Only countries with `status = 1` (enabled) are returned by the API. Disabled countries are not accessible for customer selection.
+</Note>
+
+## Shipping Restrictions
+
+Countries can be restricted for specific shipping methods:
+
+```php
+// Check if shipping available to country
+function isShippingAvailable($country_id) {
+    $this->load->model('localisation/country');
+    
+    $country_info = $this->model_localisation_country->getCountry($country_id);
+    
+    if (!$country_info || !$country_info['status']) {
+        return false;
+    }
+    
+    // Additional shipping method availability checks
+    // ...
+    
+    return true;
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Zones API" icon="map" href="/api/localization/zones">
+    Access state/province data
+  </Card>
+  
+  <Card title="Addresses API" icon="location-dot" href="/api/account/addresses">
+    Manage customer addresses
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create orders with addresses
+  </Card>
+  
+  <Card title="Currencies API" icon="dollar-sign" href="/api/localization/currencies">
+    Access currency information
+  </Card>
+</CardGroup>

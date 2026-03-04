@@ -1,0 +1,444 @@
+---
+title: "User Management"
+description: "Manage admin users, permissions, and API access for your OpenCart store"
+---
+
+## Overview
+
+OpenCart's user management system allows you to create multiple admin users with granular permissions, ensuring secure access control for your team. You can also manage API users for programmatic access to your store.
+
+<Note>
+Access user management from **System → Users** in the admin panel.
+</Note>
+
+## Admin Users
+
+### User Structure
+
+Admin users are defined with authentication credentials and permission groups.
+
+```php
+// From user.php model (system/library/cart/user.php)
+namespace Opencart\System\Library\Cart;
+
+class User {
+    protected int $user_id = 0;
+    protected string $username = '';
+    protected int $user_group_id = 0;
+    protected array $permission = [];
+    
+    public function login(string $username, string $password): bool {
+        $user_query = $this->db->query(
+            "SELECT * FROM `" . DB_PREFIX . "user` 
+            WHERE LCASE(`username`) = '" . $this->db->escape(oc_strtolower($username)) . "' 
+            AND `status` = '1'"
+        );
+        
+        if ($user_query->num_rows && password_verify($password, $user_query->row['password'])) {
+            $this->user_id = $user_query->row['user_id'];
+            $this->username = $user_query->row['username'];
+            $this->user_group_id = $user_query->row['user_group_id'];
+            return true;
+        }
+        
+        return false;
+    }
+}
+```
+
+### Creating Admin Users
+
+<Steps>
+  <Step title="Add New User">
+    Navigate to **System → Users → Users** and click **Add New**.
+    
+    **Required Fields:**
+    ```php
+    $user_data = [
+        'username' => 'john.doe',           // Login username
+        'user_group_id' => 1,               // Permission group
+        'firstname' => 'John',
+        'lastname' => 'Doe',
+        'email' => 'john@example.com',
+        'image' => 'path/to/avatar.jpg',
+        'status' => 1                       // 1 = Enabled, 0 = Disabled
+    ];
+    ```
+  </Step>
+  
+  <Step title="Set Password">
+    Create a strong password following security best practices.
+    
+    <Warning>
+    Passwords are hashed using PHP's `password_hash()` with the default algorithm (bcrypt).
+    </Warning>
+  </Step>
+  
+  <Step title="Assign User Group">
+    Select a user group that defines permissions (e.g., Administrator, Manager, Developer).
+  </Step>
+  
+  <Step title="Activate User">
+    Enable the user account to allow login access.
+  </Step>
+</Steps>
+
+### User Fields
+
+<Accordion title="Username">
+Unique identifier for login. Cannot be changed after creation.
+</Accordion>
+
+<Accordion title="User Group">
+Determines access permissions. Users inherit all permissions from their assigned group.
+</Accordion>
+
+<Accordion title="Email">
+Used for password recovery and notifications. Must be unique.
+</Accordion>
+
+<Accordion title="Image">
+Optional profile picture displayed in admin header.
+</Accordion>
+
+<Accordion title="Status">
+Enable (1) or disable (0) user account. Disabled users cannot log in.
+</Accordion>
+
+## User Groups and Permissions
+
+### Permission System
+
+OpenCart uses a two-tier permission system: **Access** and **Modify**.
+
+```php
+// From user_permission.php model
+namespace Opencart\Admin\Model\User;
+
+class UserGroup extends \Opencart\System\Engine\Model {
+    public function addUserGroup(array $data): int {
+        $this->db->query(
+            "INSERT INTO `" . DB_PREFIX . "user_group` 
+            SET `name` = '" . $this->db->escape($data['name']) . "', 
+            `permission` = '" . $this->db->escape(isset($data['permission']) ? json_encode($data['permission']) : '') . "'"
+        );
+        
+        return $this->db->getLastId();
+    }
+}
+```
+
+### Permission Types
+
+<CardGroup cols={2}>
+  <Card title="Access Permission" icon="eye">
+    Allows viewing specific admin pages and sections. User can see data but cannot make changes.
+  </Card>
+  
+  <Card title="Modify Permission" icon="pen-to-square">
+    Allows creating, editing, and deleting data. Always requires corresponding Access permission.
+  </Card>
+</CardGroup>
+
+### Creating User Groups
+
+<Steps>
+  <Step title="Add User Group">
+    Navigate to **System → Users → User Groups** and click **Add New**.
+    
+    Example groups:
+    - **Administrator** - Full access to all features
+    - **Manager** - Catalog and order management only
+    - **Support** - View orders and customer data
+    - **Developer** - Design and extension management
+  </Step>
+  
+  <Step title="Configure Access Permissions">
+    Select pages users can view:
+    
+    ```php
+    $access_permissions = [
+        'catalog/product',
+        'catalog/category',
+        'sale/order',
+        'customer/customer',
+        // ... more routes
+    ];
+    ```
+  </Step>
+  
+  <Step title="Configure Modify Permissions">
+    Select pages where users can make changes:
+    
+    ```php
+    $modify_permissions = [
+        'catalog/product',      // Can add/edit/delete products
+        'sale/order',           // Can update order status
+        // ... subset of access permissions
+    ];
+    ```
+  </Step>
+</Steps>
+
+### Common Permission Sets
+
+<Tabs>
+  <Tab title="Administrator">
+    **Access:** All routes  
+    **Modify:** All routes
+    
+    Full control over the entire admin panel.
+  </Tab>
+  
+  <Tab title="Store Manager">
+    **Access:**
+    - catalog/* (all catalog pages)
+    - sale/order
+    - customer/customer
+    - marketing/*
+    
+    **Modify:**
+    - catalog/product
+    - catalog/category
+    - sale/order (status updates)
+    - marketing/coupon
+    
+    Can manage products, orders, and marketing campaigns.
+  </Tab>
+  
+  <Tab title="Customer Support">
+    **Access:**
+    - sale/order
+    - customer/customer
+    - customer/customer_approval
+    - sale/returns
+    
+    **Modify:**
+    - sale/order (status only)
+    - sale/returns
+    
+    Can view orders and customers, update statuses, manage returns.
+  </Tab>
+  
+  <Tab title="Developer">
+    **Access:**
+    - design/*
+    - marketplace/*
+    - tool/*
+    
+    **Modify:**
+    - design/theme
+    - design/layout
+    - marketplace/extension
+    
+    Can manage themes, layouts, and extensions.
+  </Tab>
+</Tabs>
+
+## API Users
+
+### API Authentication
+
+API users allow programmatic access to your store via REST API.
+
+```php
+// From api.php controller
+namespace Opencart\Admin\Controller\User;
+
+class Api extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->model('user/api');
+        
+        // API users with session tokens
+        $results = $this->model_user_api->getApis();
+    }
+}
+```
+
+### Creating API Users
+
+<Steps>
+  <Step title="Add API User">
+    Navigate to **System → Users → API** and click **Add New**.
+    
+    ```php
+    $api_data = [
+        'username' => 'mobile_app',
+        'key' => $this->generateApiKey(),  // Secure random key
+        'status' => 1,
+        'date_added' => date('Y-m-d H:i:s'),
+        'date_modified' => date('Y-m-d H:i:s')
+    ];
+    ```
+  </Step>
+  
+  <Step title="Configure IP Restrictions">
+    Add allowed IP addresses for security.
+    
+    ```php
+    $api_ips = [
+        ['ip' => '192.168.1.100'],  // Office IP
+        ['ip' => '10.0.0.50'],      // Server IP
+    ];
+    ```
+    
+    <Warning>
+    Leave IP list empty to allow access from any IP (not recommended for production).
+    </Warning>
+  </Step>
+  
+  <Step title="Generate API Key">
+    OpenCart generates a unique API key (token) for authentication.
+    
+    Store this key securely - it won't be shown again.
+  </Step>
+</Steps>
+
+### Using API Keys
+
+```php
+// API authentication example
+$api_key = 'your-api-key-here';
+$store_url = 'https://yourstore.com';
+
+// Step 1: Create session
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $store_url . '/index.php?route=api/login');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+    'key' => $api_key
+]));
+
+$response = curl_exec($ch);
+$data = json_decode($response, true);
+$api_token = $data['api_token'];
+
+// Step 2: Use token for requests
+curl_setopt($ch, CURLOPT_URL, $store_url . '/index.php?route=api/cart/add&api_token=' . $api_token);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+    'product_id' => 42,
+    'quantity' => 1
+]));
+
+$result = curl_exec($ch);
+curl_close($ch);
+```
+
+## Profile Management
+
+### Editing Your Profile
+
+Admin users can update their own profile information.
+
+```php
+// From profile.php controller
+namespace Opencart\Admin\Controller\User;
+
+class Profile extends \Opencart\System\Engine\Controller {
+    public function edit(): void {
+        $this->load->model('user/user');
+        
+        // Users can update their own details
+        $user_info = $this->model_user_user->getUser($this->user->getId());
+        
+        // Can modify: firstname, lastname, email, image, password
+        // Cannot modify: username, user_group_id (requires admin)
+    }
+}
+```
+
+<Note>
+Access your profile by clicking your username in the top-right corner of the admin panel.
+</Note>
+
+### Changing Passwords
+
+<Steps>
+  <Step title="Navigate to Profile">
+    Click your username → **Edit Profile**.
+  </Step>
+  
+  <Step title="Enter New Password">
+    Provide a strong password meeting these criteria:
+    - Minimum 8 characters
+    - Mix of uppercase and lowercase
+    - Include numbers and symbols
+    - Avoid common words or patterns
+  </Step>
+  
+  <Step title="Confirm Password">
+    Re-enter the password to confirm.
+  </Step>
+  
+  <Step title="Save Changes">
+    Your password is immediately updated and you'll need to use it on next login.
+  </Step>
+</Steps>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Principle of Least Privilege" icon="shield">
+    Grant users only the permissions they need. Create specific user groups for different roles.
+  </Card>
+  
+  <Card title="Strong Passwords" icon="lock">
+    Enforce complex passwords. Change default passwords immediately after installation.
+  </Card>
+  
+  <Card title="Regular Audits" icon="clipboard-check">
+    Review user accounts and permissions quarterly. Remove inactive users.
+  </Card>
+  
+  <Card title="API IP Restrictions" icon="network-wired">
+    Always restrict API access to known IP addresses in production environments.
+  </Card>
+  
+  <Card title="Two-Factor Authentication" icon="mobile">
+    Install a 2FA extension for additional login security (available in marketplace).
+  </Card>
+  
+  <Card title="Session Timeout" icon="clock">
+    Configure session timeout in settings to automatically log out inactive users.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Cannot Log In After Password Change">
+Clear browser cookies and cache. Ensure the password was saved correctly by resetting it again through the database if needed.
+
+```sql
+-- Reset password directly in database (use PHP password_hash)
+UPDATE oc_user SET password = '$2y$10$...' WHERE username = 'admin';
+```
+</Accordion>
+
+<Accordion title="User Group Permissions Not Working">
+Verify both Access AND Modify permissions are set. Clear cache and log out/in again.
+</Accordion>
+
+<Accordion title="API Authentication Failing">
+Check:
+1. API status is enabled
+2. IP address is in allowed list (or list is empty)
+3. API key is correct
+4. Session token hasn't expired (tokens expire after 1 hour)
+</Accordion>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Store Settings" icon="gear" href="/configuration/settings">
+    Configure session and security settings
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Complete API documentation for developers
+  </Card>
+  
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Install security extensions like 2FA
+  </Card>
+</CardGroup>

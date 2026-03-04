@@ -1,0 +1,351 @@
+---
+title: Installation Guide
+description: Step-by-step instructions for installing OpenCart on Linux, Windows, or using Docker for local development
+---
+
+<Note>
+  This guide is for **new installations only**. If you're upgrading from a previous version, see the [Upgrade Guide](/upgrading) instead.
+</Note>
+
+## Installation Methods
+
+Choose the installation method that best fits your needs:
+
+<CardGroup cols={3}>
+  <Card title="Linux/Unix" icon="linux">
+    Production server installation using cPanel or FTP
+  </Card>
+  <Card title="Docker" icon="docker">
+    Local development environment (recommended)
+  </Card>
+  <Card title="Windows" icon="windows">
+    Windows server or local development
+  </Card>
+</CardGroup>
+
+## Pre-Installation Checklist
+
+Before you begin, ensure you have:
+
+- ✅ PHP 8.0.2 or higher installed
+- ✅ MySQL database created with a user assigned
+- ✅ Required PHP extensions enabled: `curl`, `gd`, `zip`
+- ✅ FTP/SSH access to your server (for manual installation)
+- ✅ Downloaded the latest OpenCart release
+
+<Warning>
+  **Never use your MySQL `root` username and password** for OpenCart. Always create a dedicated database user with appropriate permissions.
+</Warning>
+
+## Linux/Unix Installation
+
+<Steps>
+  <Step title="Upload Files">
+    Upload all files and folders from the `upload/` directory to your web root:
+    
+    - **cPanel**: `public_html/`
+    - **Plesk**: `httpdocs/`
+    - **Other**: Your server's document root
+
+    ```bash
+    # Example using SCP
+    scp -r upload/* user@yourserver.com:/path/to/public_html/
+    ```
+  </Step>
+
+  <Step title="Set Permissions">
+    Ensure your web user has read, write, and execute permissions:
+
+    ```bash
+    # Rename configuration files
+    mv config-dist.php config.php
+    mv admin/config-dist.php admin/config.php
+
+    # Set writable permissions
+    chmod 0777 config.php
+    chmod 0777 admin/config.php
+    ```
+
+    <Warning>
+      After installation is complete, you should change these permissions to `0644` for security:
+      ```bash
+      chmod 0644 config.php
+      chmod 0644 admin/config.php
+      ```
+    </Warning>
+  </Step>
+
+  <Step title="Prepare Database">
+    Create a MySQL database and user:
+
+    ```sql
+    CREATE DATABASE opencart_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER 'opencart_user'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON opencart_db.* TO 'opencart_user'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+  </Step>
+
+  <Step title="Run Web Installer">
+    Visit your store homepage in a web browser:
+    
+    ```
+    http://www.example.com
+    # or if in a subdirectory:
+    http://www.example.com/store/
+    ```
+
+    You'll be redirected to the installation wizard. Follow the on-screen instructions:
+    
+    1. Accept the license agreement
+    2. Verify system requirements
+    3. Enter database connection details
+    4. Create admin account
+    5. Complete installation
+  </Step>
+
+  <Step title="Post-Installation">
+    After successful installation:
+
+    ```bash
+    # Delete the install directory (REQUIRED)
+    rm -rf install/
+
+    # If you have a vendor folder, move it above webroot
+    # (applies to compiled versions only)
+    mv vendor/ ../vendor/
+    ```
+
+    <Warning>
+      **You must delete the `/install/` directory** after installation for security reasons. Your store will not function properly until this is done.
+    </Warning>
+  </Step>
+</Steps>
+
+## Docker Installation (Recommended for Development)
+
+OpenCart includes a complete Docker-based development environment.
+
+### Prerequisites
+
+<Accordion title="System Requirements">
+  - **Docker Desktop** or Docker Engine with Docker Compose v2
+  - **`make`** utility (pre-installed on macOS/Linux)
+  - **WSL 2** (strongly recommended for Windows users)
+
+  <Note>
+    For Windows users: Clone the repository **inside** your WSL distribution (e.g., Ubuntu) for optimal performance. Without WSL 2, file system performance will be extremely slow.
+  </Note>
+</Accordion>
+
+### Quick Start with Docker
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/opencart/opencart.git
+    cd opencart
+    ```
+  </Step>
+
+  <Step title="Initialize Environment">
+    ```bash
+    make init
+    ```
+    This copies `docker/.env.docker.example` to `docker/.env.docker`
+  </Step>
+
+  <Step title="Build Images">
+    ```bash
+    make build
+    ```
+    Builds PHP, Apache, and MySQL Docker images
+  </Step>
+
+  <Step title="Start Services">
+    ```bash
+    make up
+    ```
+    Starts all services. Your store will be available at `http://localhost`
+  </Step>
+
+  <Step title="Complete Web Installation">
+    Open `http://localhost` in your browser and follow the installation wizard
+  </Step>
+</Steps>
+
+### Docker Commands Reference
+
+```bash
+# View all available commands
+make help
+
+# Stop the environment
+make down
+
+# View logs from all services
+make logs
+
+# Enter the PHP container
+make php
+
+# Restart services
+make restart
+```
+
+### Using Optional Services
+
+Enable additional services using Docker Compose profiles:
+
+```bash
+# Start with Adminer (database management UI)
+make up profiles="adminer"
+
+# Start with Redis and Memcached
+make up profiles="redis memcached"
+
+# Start all optional services
+make up profiles="adminer redis memcached postgres"
+```
+
+<Tip>
+  Access Adminer at `http://localhost:8080` when enabled
+</Tip>
+
+### Changing PHP Version
+
+Edit `docker/.env.docker` to change the PHP version:
+
+```env
+PHP_VERSION=8.2
+```
+
+Then rebuild:
+
+```bash
+make build
+make up
+```
+
+## Windows Installation
+
+<Steps>
+  <Step title="Upload Files">
+    Upload all files from the `upload/` folder to your server directory:
+    
+    ```
+    C:\inetpub\wwwroot\store\
+    # or
+    C:\wwwroot\
+    ```
+  </Step>
+
+  <Step title="Rename Configuration Files">
+    ```
+    config-dist.php → config.php
+    admin/config-dist.php → admin/config.php
+    ```
+
+    Set Read and Write permissions for these files in Windows File Properties
+  </Step>
+
+  <Step title="Enable PHP Extensions">
+    Ensure these extensions are enabled in `php.ini`:
+
+    ```ini
+    extension=curl
+    extension=gd
+    extension=zip
+    extension=mbstring
+    ```
+  </Step>
+
+  <Step title="Create Database">
+    Create a MySQL database and user (do not use root credentials)
+  </Step>
+
+  <Step title="Run Installer">
+    Visit your site in a browser and follow the installation wizard
+  </Step>
+
+  <Step title="Delete Install Directory">
+    After completion, delete the `install/` directory
+  </Step>
+</Steps>
+
+## Local Development Alternatives
+
+If you prefer not to use Docker, these all-in-one solutions work well with OpenCart:
+
+- **XAMPP**: [apachefriends.org](https://www.apachefriends.org/)
+- **AMPPS**: [ampps.com](http://www.ampps.com/)
+- **WampServer**: [wampserver.com](http://www.wampserver.com/en/)
+- **USBWebServer**: [usbwebserver.net](http://www.usbwebserver.net)
+
+## Post-Installation Configuration
+
+### Going Live
+
+Before launching your production store, disable error display:
+
+<CodeGroup>
+```php system/config/default.php
+// Find:
+$_['error_display'] = true;
+
+// Replace with:
+$_['error_display'] = false;
+```
+</CodeGroup>
+
+### Initial Store Configuration
+
+1. **Login to Admin Panel**: `http://yourstore.com/admin`
+2. **System → Settings**: Configure your store details
+3. **Extensions → Extensions**: Install payment and shipping methods
+4. **Design → Themes**: Select and configure your theme
+5. **System → Users → User Groups**: Verify admin permissions
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="GoDaddy Hosting Issues">
+    If hosting on GoDaddy, you may need to rename `php.ini` to `user.ini`
+    
+    GoDaddy uses non-standard file naming conventions for PHP configuration.
+  </Accordion>
+
+  <Accordion title="Blank Page After Installation">
+    - Ensure you've deleted the `/install/` directory
+    - Check file permissions on `config.php` files
+    - Enable error display temporarily to see the actual error
+    - Check PHP error logs for details
+  </Accordion>
+
+  <Accordion title="Database Connection Errors">
+    - Verify database credentials in `config.php`
+    - Ensure MySQL service is running
+    - Check that database user has proper privileges
+    - Confirm database host (usually `localhost`)
+  </Accordion>
+
+  <Accordion title="Missing Images or Broken Layout">
+    - Check file permissions on `/image/` directory
+    - Verify web server is configured to serve static files
+    - Clear browser cache
+    - Check for `.htaccess` issues on Apache
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that OpenCart is installed:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" icon="rocket" href="/installation">
+    Configure your store and add your first products
+  </Card>
+  <Card title="Theme Customization" icon="palette" href="/design/themes">
+    Customize the look and feel of your store
+  </Card>
+</CardGroup>

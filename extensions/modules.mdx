@@ -1,0 +1,484 @@
+---
+title: Module Extensions
+description: Display and content modules for customizing your OpenCart storefront
+---
+
+Module extensions control what content is displayed in your store and where it appears. Unlike payment or shipping extensions that handle specific transactions, modules are responsible for displaying products, categories, banners, and other content blocks throughout your site.
+
+## What Are Modules?
+
+Modules are display components that can be positioned in various layouts throughout your store. They typically:
+
+- Display dynamic content (products, categories, banners)
+- Can be added to multiple layouts
+- Support multiple instances with different settings
+- Are managed through **Extensions → Extensions → Modules**
+
+<Note>
+  Modules can be assigned to specific layouts and positions using **Design → Layouts** in the admin panel.
+</Note>
+
+## Built-in Modules
+
+OpenCart includes these default modules in `upload/extension/opencart/`:
+
+<CardGroup cols={2}>
+  <Card title="Account" icon="user">
+    Displays customer account links in a sidebar
+  </Card>
+  <Card title="Banner" icon="image">
+    Image carousel/slider for promotional banners
+  </Card>
+  <Card title="Bestseller" icon="star">
+    Shows your best-selling products
+  </Card>
+  <Card title="Category" icon="list">
+    Displays category navigation tree
+  </Card>
+  <Card title="Featured" icon="crown">
+    Showcase hand-picked featured products
+  </Card>
+  <Card title="Filter" icon="filter">
+    Product filtering by attributes
+  </Card>
+  <Card title="HTML Content" icon="code">
+    Display custom HTML/text content
+  </Card>
+  <Card title="Information" icon="info-circle">
+    Links to information pages
+  </Card>
+  <Card title="Latest" icon="clock">
+    Recently added products
+  </Card>
+  <Card title="Special" icon="tag">
+    Products currently on special offer
+  </Card>
+  <Card title="Store" icon="store">
+    Display store locations (multi-store)
+  </Card>
+  <Card title="Blog/Topic" icon="newspaper">
+    Blog post listings and topics
+  </Card>
+</CardGroup>
+
+## Module Architecture
+
+### Admin Controller
+
+Location: `admin/controller/extension/[vendor]/module/[name].php`
+
+```php
+namespace Opencart\Admin\Controller\Extension\Opencart\Module;
+
+class Banner extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        // Load language
+        $this->load->language('extension/opencart/module/banner');
+        
+        // Get module settings if editing existing instance
+        if (isset($this->request->get['module_id'])) {
+            $this->load->model('setting/module');
+            $module_info = $this->model_setting_module->getModule(
+                $this->request->get['module_id']
+            );
+        }
+        
+        // Prepare data for view
+        $data['name'] = $module_info['name'] ?? '';
+        $data['status'] = $module_info['status'] ?? '';
+        
+        // Display configuration form
+        $this->response->setOutput(
+            $this->load->view('extension/opencart/module/banner', $data)
+        );
+    }
+    
+    public function save(): void {
+        // Validate and save settings
+        $this->load->model('setting/module');
+        
+        if (!$this->request->post['module_id']) {
+            // Add new module instance
+            $json['module_id'] = $this->model_setting_module->addModule(
+                'opencart.banner', 
+                $this->request->post
+            );
+        } else {
+            // Update existing instance
+            $this->model_setting_module->editModule(
+                $this->request->post['module_id'], 
+                $this->request->post
+            );
+        }
+    }
+}
+```
+
+### Catalog Controller
+
+Location: `catalog/controller/extension/[vendor]/module/[name].php`
+
+```php
+namespace Opencart\Catalog\Controller\Extension\Opencart\Module;
+
+class Banner extends \Opencart\System\Engine\Controller {
+    public function index(array $setting): string {
+        // Load data based on settings
+        $this->load->model('design/banner');
+        $this->load->model('tool/image');
+        
+        $data['banners'] = [];
+        
+        // Get banner items
+        $results = $this->model_design_banner->getBanner(
+            $setting['banner_id']
+        );
+        
+        foreach ($results as $result) {
+            $data['banners'][] = [
+                'title' => $result['title'],
+                'link'  => $result['link'],
+                'image' => $result['image']
+            ];
+        }
+        
+        // Pass settings to view
+        $data['effect'] = $setting['effect'];
+        $data['interval'] = $setting['interval'];
+        $data['width'] = $setting['width'];
+        $data['height'] = $setting['height'];
+        
+        // Return rendered view
+        return $this->load->view('extension/opencart/module/banner', $data);
+    }
+}
+```
+
+<Note>
+  Catalog module controllers must accept a `$setting` array parameter and return a string (rendered HTML).
+</Note>
+
+## Multiple Module Instances
+
+Unlike other extension types, modules can have multiple instances with different configurations:
+
+### Creating Instances
+
+1. Go to **Extensions → Extensions → Modules**
+2. Find your module and click **Edit**
+3. Some modules have an **Add** button to create new instances
+4. Configure each instance with unique settings
+
+### Example: Multiple Banner Modules
+
+```php
+// Banner Module #1: Homepage Hero
+[
+    'name' => 'Homepage Hero Banner',
+    'banner_id' => 7,
+    'width' => 1200,
+    'height' => 400,
+    'status' => 1
+]
+
+// Banner Module #2: Sidebar Promo  
+[
+    'name' => 'Sidebar Promotional',
+    'banner_id' => 8,
+    'width' => 300,
+    'height' => 250,
+    'status' => 1
+]
+```
+
+### Module Instance Storage
+
+Module instances are stored in the `module` table:
+
+```sql
+module_id | name                  | code            | setting
+----------|-----------------------|-----------------|----------
+42        | Homepage Hero Banner  | opencart.banner | {...}
+43        | Sidebar Promotional   | opencart.banner | {...}
+```
+
+## Common Module Features
+
+### Banner Module
+
+Location: `admin/controller/extension/opencart/module/banner.php:1`
+
+**Configuration Options:**
+- **Banner**: Select from pre-configured banners
+- **Effect**: Slide, fade, or other transition effects
+- **Items**: Number of items to display at once
+- **Controls**: Show previous/next buttons
+- **Indicators**: Show dot navigation
+- **Interval**: Auto-advance timing (milliseconds)
+- **Width/Height**: Image dimensions
+
+**Use Cases:**
+- Homepage hero sliders
+- Promotional banners
+- Category page headers
+- Sidebar advertisements
+
+### Product Display Modules
+
+Three modules display products with similar functionality:
+
+<Accordion title="Featured Products">
+  **Purpose**: Display hand-selected featured products
+  
+  **Configuration**:
+  - Select specific products to feature
+  - Set number of products to display
+  - Control width and height
+  - Enable/disable status
+  
+  **Location**: `admin/controller/extension/opencart/module/featured.php:1`
+</Accordion>
+
+<Accordion title="Latest Products">
+  **Purpose**: Automatically show recently added products
+  
+  **Configuration**:
+  - Set limit (number of products)
+  - Set image dimensions
+  - Enable/disable status
+  
+  **Location**: `admin/controller/extension/opencart/module/latest.php:1`
+</Accordion>
+
+<Accordion title="Bestseller Products">
+  **Purpose**: Display best-selling products by sales volume
+  
+  **Configuration**:
+  - Set limit for number of products
+  - Configure image dimensions
+  - Enable/disable status
+  
+  **Location**: `admin/controller/extension/opencart/module/bestseller.php:1`
+</Accordion>
+
+### HTML Content Module
+
+Location: `admin/controller/extension/opencart/module/html.php:1`
+
+**Purpose**: Display custom HTML/text content blocks
+
+**Features:**
+- Multi-language support
+- Full HTML editor
+- Can contain text, images, links, or custom code
+- Multiple instances for different content blocks
+
+**Use Cases:**
+- Custom promotional text
+- Store policies
+- Social media links
+- Custom widgets
+
+### Category Module
+
+Location: `admin/controller/extension/opencart/module/category.php:1`
+
+**Purpose**: Display category navigation tree
+
+**Configuration:**
+- Status enable/disable
+- Typically displayed in sidebar
+- Shows category hierarchy
+- Highlights current category
+
+## Assigning Modules to Layouts
+
+After configuring a module, assign it to layouts:
+
+1. Go to **Design → Layouts**
+2. Select a layout (e.g., "Homepage", "Product", "Category")
+3. Click **Edit**
+4. Add module to desired position:
+   - Content Top
+   - Content Bottom
+   - Column Left
+   - Column Right
+
+<Warning>
+  Modules must be installed and configured before they can be assigned to layouts.
+</Warning>
+
+## Developing Custom Modules
+
+### Basic Module Structure
+
+```php
+// admin/controller/extension/myvendor/module/custom.php
+namespace Opencart\Admin\Controller\Extension\Myvendor\Module;
+
+class Custom extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/myvendor/module/custom');
+        
+        // Build breadcrumbs
+        $data['breadcrumbs'] = [];
+        $data['breadcrumbs'][] = [
+            'text' => $this->language->get('text_home'),
+            'href' => $this->url->link('common/dashboard')
+        ];
+        
+        // Form action URLs
+        $data['save'] = $this->url->link(
+            'extension/myvendor/module/custom.save'
+        );
+        
+        // Load existing settings
+        if (isset($this->request->get['module_id'])) {
+            $this->load->model('setting/module');
+            $module_info = $this->model_setting_module->getModule(
+                $this->request->get['module_id']
+            );
+        }
+        
+        // Prepare form data
+        $data['name'] = $module_info['name'] ?? '';
+        $data['status'] = $module_info['status'] ?? 0;
+        
+        // Render view
+        $data['header'] = $this->load->controller('common/header');
+        $data['column_left'] = $this->load->controller('common/column_left');
+        $data['footer'] = $this->load->controller('common/footer');
+        
+        $this->response->setOutput(
+            $this->load->view('extension/myvendor/module/custom', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/myvendor/module/custom');
+        
+        $json = [];
+        
+        // Validate permissions
+        if (!$this->user->hasPermission('modify', 'extension/myvendor/module/custom')) {
+            $json['error']['warning'] = $this->language->get('error_permission');
+        }
+        
+        // Validate required fields
+        if (!$this->request->post['name']) {
+            $json['error']['name'] = $this->language->get('error_name');
+        }
+        
+        if (!$json) {
+            $this->load->model('setting/module');
+            
+            if (!$this->request->post['module_id']) {
+                $json['module_id'] = $this->model_setting_module->addModule(
+                    'myvendor.custom',
+                    $this->request->post
+                );
+            } else {
+                $this->model_setting_module->editModule(
+                    $this->request->post['module_id'],
+                    $this->request->post
+                );
+            }
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+    
+    // Optional: Allow creating new instances
+    public function add(): void {
+        $this->load->model('setting/module');
+        $this->model_setting_module->addModule(
+            'myvendor.custom',
+            ['name' => 'New Custom Module']
+        );
+    }
+    
+    // Optional: Handle deletion
+    public function delete(): void {
+        $this->load->model('setting/module');
+        $module_id = $this->request->get['module_id'] ?? 0;
+        $this->model_setting_module->deleteModule($module_id);
+    }
+}
+```
+
+### Catalog Display Controller
+
+```php
+// catalog/controller/extension/myvendor/module/custom.php
+namespace Opencart\Catalog\Controller\Extension\Myvendor\Module;
+
+class Custom extends \Opencart\System\Engine\Controller {
+    public function index(array $setting): string {
+        // Check if module is enabled
+        if (!$setting['status']) {
+            return '';
+        }
+        
+        // Load language
+        $this->load->language('extension/myvendor/module/custom');
+        
+        // Load models if needed
+        $this->load->model('catalog/product');
+        
+        // Prepare data from settings
+        $data['heading_title'] = $this->language->get('heading_title');
+        $data['text_custom'] = $setting['custom_text'] ?? '';
+        
+        // Fetch and prepare content
+        $data['products'] = [];
+        // ... your logic here ...
+        
+        // Return rendered HTML
+        return $this->load->view('extension/myvendor/module/custom', $data);
+    }
+}
+```
+
+## Module Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Cache-Friendly" icon="bolt">
+    Design modules to work with OpenCart's caching system for better performance
+  </Card>
+  <Card title="Responsive Design" icon="mobile">
+    Ensure module views work on all screen sizes
+  </Card>
+  <Card title="Language Support" icon="language">
+    Use language files for all user-facing text
+  </Card>
+  <Card title="Settings Validation" icon="check">
+    Always validate user input in the save method
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Module Not Displaying
+
+1. **Check installation**: Is the module installed?
+2. **Check status**: Is the module enabled in settings?
+3. **Check layout**: Is the module assigned to the current layout?
+4. **Check position**: Is the module in a visible position?
+5. **Check cache**: Clear the cache (**Dashboard → Developer Settings → Refresh**)
+
+### Module Not Saving Settings
+
+1. **Check permissions**: Does the user have modify permission?
+2. **Check validation**: Are all required fields filled?
+3. **Check browser console**: Look for JavaScript errors
+4. **Check error log**: Review system/storage/logs/error.log
+
+## Next Steps
+
+- [Payment Extensions](/extensions/payments) - Payment gateway integration
+- [Shipping Extensions](/extensions/shipping) - Shipping calculators  
+- [Theme Extensions](/extensions/themes) - Visual customization
+- [Extensions Overview](/extensions/overview) - Extension system basics

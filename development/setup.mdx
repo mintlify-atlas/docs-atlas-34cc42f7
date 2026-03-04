@@ -1,0 +1,379 @@
+---
+title: "Development Environment Setup"
+description: "Set up a local OpenCart development environment using Docker or native PHP stack"
+---
+
+## System Requirements
+
+OpenCart 4.x requires:
+
+- **PHP 8.0+** with extensions: `curl`, `gd`, `zip`, `mysqli`, `openssl`, `zlib`
+- **MySQL 5.7+** or **MariaDB 10.3+** (or compatible database)
+- **Web Server**: Apache 2.4+ or Nginx 1.18+
+- **Composer** for dependency management
+
+## Docker Setup (Recommended)
+
+OpenCart includes a Docker development environment using Docker Compose.
+
+### Initial Setup
+
+<Steps>
+
+<Step title="Initialize Environment">
+Copy the example environment configuration:
+
+```bash
+make init
+```
+
+This creates `docker/.env.docker` from the example template.
+</Step>
+
+<Step title="Build Images">
+Build the PHP, Apache, and MySQL Docker images:
+
+```bash
+make build
+```
+</Step>
+
+<Step title="Start Services">
+Launch the development stack:
+
+```bash
+make up
+```
+
+To include optional services like Redis:
+```bash
+make up profiles="redis"
+```
+</Step>
+
+<Step title="Install OpenCart">
+Visit `http://localhost` in your browser and complete the web installer:
+
+1. Accept the license agreement
+2. Pre-installation check passes automatically
+3. Configure database connection (default credentials in `docker/.env.docker`)
+4. Set up admin account
+5. Complete installation
+
+After installation, delete the install directory:
+```bash
+rm -rf upload/install/
+```
+</Step>
+
+</Steps>
+
+### Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Start all services |
+| `make down` | Stop and remove containers |
+| `make php` | Open shell in PHP container as www-data |
+| `make logs` | Tail all service logs |
+| `make restart` | Restart all services |
+| `make build` | Rebuild Docker images |
+
+### Accessing the PHP Container
+
+To run CLI commands inside the PHP container:
+
+```bash
+make php
+```
+
+This opens a shell as the `www-data` user. From here you can:
+
+```bash
+# Run Composer commands
+composer install
+
+# Run code quality tools
+php tools/phpstan.phar analyze
+
+# Access the OpenCart directory
+cd /var/www/html/upload/
+```
+
+## Native Installation
+
+For custom setups without Docker:
+
+### Install PHP Dependencies
+
+From the repository root:
+
+```bash
+composer install --no-interaction
+```
+
+This installs libraries into `upload/system/storage/vendor/` as configured in `composer.json`.
+
+### Web Server Configuration
+
+#### Apache
+
+Point your virtual host to the `upload/` directory:
+
+```apache
+<VirtualHost *:80>
+    ServerName opencart.local
+    DocumentRoot /path/to/opencart/upload
+    
+    <Directory /path/to/opencart/upload>
+        AllowOverride All
+        Require all granted
+        DirectoryIndex index.php
+    </Directory>
+    
+    ErrorLog ${APACHE_LOG_DIR}/opencart-error.log
+    CustomLog ${APACHE_LOG_DIR}/opencart-access.log combined
+</VirtualHost>
+```
+
+Enable required modules:
+```bash
+a2enmod rewrite
+systemctl restart apache2
+```
+
+#### Nginx
+
+```nginx
+server {
+    listen 80;
+    server_name opencart.local;
+    root /path/to/opencart/upload;
+    
+    index index.php;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+    
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.0-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+    
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+
+### Database Setup
+
+Create a MySQL database and user:
+
+```sql
+CREATE DATABASE opencart CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'opencart'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON opencart.* TO 'opencart'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### File Permissions
+
+Ensure the web server can write to required directories:
+
+```bash
+chmod 755 upload/
+chmod 644 upload/config.php
+chmod 644 upload/admin/config.php
+chmod -R 755 upload/system/storage/
+chmod -R 755 upload/image/
+chmod -R 755 upload/download/
+```
+
+## Development Tools
+
+### Code Quality Checks
+
+Run these checks before committing (same as CI):
+
+<Tabs>
+<Tab title="Syntax Lint">
+```bash
+find upload -type f -name "*.php" ! -path 'upload/system/storage/vendor/*' -exec php -l -n {} +
+```
+</Tab>
+
+<Tab title="Static Analysis">
+```bash
+php tools/phpstan.phar analyze --no-progress
+```
+
+PHPStan runs at level 6, checking for type safety and potential bugs.
+</Tab>
+
+<Tab title="Code Style">
+```bash
+# Dry run (check only)
+php tools/php-cs-fixer.phar fix --dry-run --diff --ansi
+
+# Auto-fix issues
+php tools/php-cs-fixer.phar fix
+```
+
+Follows PSR-12 coding standards with OpenCart-specific rules.
+</Tab>
+</Tabs>
+
+### IDE Configuration
+
+#### PHPStorm / IntelliJ IDEA
+
+1. **PHP Language Level**: Set to PHP 8.0 or 8.1
+2. **Namespaces**: Mark `upload/` as source root
+3. **Code Style**: Import `.php-cs-fixer.php` settings
+4. **Database**: Connect to your development database for code completion
+
+#### VS Code
+
+Install recommended extensions:
+- PHP Intelephense
+- PHP Debug (with Xdebug)
+- EditorConfig for VS Code
+
+Create `.vscode/settings.json`:
+```json
+{
+    "php.suggest.basic": false,
+    "php.validate.enable": false,
+    "intelephense.environment.phpVersion": "8.0.0"
+}
+```
+
+## Debugging
+
+### Xdebug with Docker
+
+Add to `docker/.env.docker`:
+```bash
+XDEBUG_MODE=develop,debug
+XDEBUG_CONFIG=client_host=host.docker.internal
+```
+
+Rebuild containers:
+```bash
+make down
+make build
+make up
+```
+
+### Xdebug with Native PHP
+
+Install Xdebug extension:
+```bash
+pecl install xdebug
+```
+
+Add to `php.ini`:
+```ini
+[xdebug]
+zend_extension=xdebug.so
+xdebug.mode=develop,debug
+xdebug.client_host=127.0.0.1
+xdebug.client_port=9003
+xdebug.start_with_request=yes
+```
+
+## Configuration Files
+
+After installation, OpenCart creates two config files:
+
+<CodeGroup>
+```php upload/config.php
+<?php
+// HTTP
+define('HTTP_SERVER', 'http://localhost/');
+
+// HTTPS
+define('HTTPS_SERVER', 'http://localhost/');
+
+// DIR
+define('DIR_OPENCART', '/var/www/html/upload/');
+define('DIR_APPLICATION', DIR_OPENCART . 'catalog/');
+define('DIR_EXTENSION', DIR_OPENCART . 'extension/');
+define('DIR_IMAGE', DIR_OPENCART . 'image/');
+define('DIR_SYSTEM', DIR_OPENCART . 'system/');
+define('DIR_STORAGE', DIR_SYSTEM . 'storage/');
+define('DIR_LANGUAGE', DIR_APPLICATION . 'language/');
+define('DIR_TEMPLATE', DIR_APPLICATION . 'view/template/');
+define('DIR_CONFIG', DIR_SYSTEM . 'config/');
+define('DIR_CACHE', DIR_STORAGE . 'cache/');
+define('DIR_DOWNLOAD', DIR_OPENCART . 'download/');
+define('DIR_LOGS', DIR_STORAGE . 'logs/');
+define('DIR_SESSION', DIR_STORAGE . 'session/');
+define('DIR_UPLOAD', DIR_STORAGE . 'upload/');
+
+// DB
+define('DB_DRIVER', 'mysqli');
+define('DB_HOSTNAME', 'mysql');
+define('DB_USERNAME', 'opencart');
+define('DB_PASSWORD', 'opencart');
+define('DB_DATABASE', 'opencart');
+define('DB_PORT', '3306');
+define('DB_PREFIX', 'oc_');
+```
+
+```php upload/admin/config.php
+<?php
+// HTTP
+define('HTTP_SERVER', 'http://localhost/admin/');
+define('HTTP_CATALOG', 'http://localhost/');
+
+// HTTPS
+define('HTTPS_SERVER', 'http://localhost/admin/');
+define('HTTPS_CATALOG', 'http://localhost/');
+
+// DIR
+define('DIR_OPENCART', '/var/www/html/upload/');
+define('DIR_APPLICATION', DIR_OPENCART . 'admin/');
+define('DIR_EXTENSION', DIR_OPENCART . 'extension/');
+define('DIR_IMAGE', DIR_OPENCART . 'image/');
+define('DIR_SYSTEM', DIR_OPENCART . 'system/');
+define('DIR_STORAGE', DIR_SYSTEM . 'storage/');
+define('DIR_CATALOG', DIR_OPENCART . 'catalog/');
+define('DIR_LANGUAGE', DIR_APPLICATION . 'language/');
+define('DIR_TEMPLATE', DIR_APPLICATION . 'view/template/');
+define('DIR_CONFIG', DIR_SYSTEM . 'config/');
+define('DIR_CACHE', DIR_STORAGE . 'cache/');
+define('DIR_DOWNLOAD', DIR_OPENCART . 'download/');
+define('DIR_LOGS', DIR_STORAGE . 'logs/');
+define('DIR_SESSION', DIR_STORAGE . 'session/');
+define('DIR_UPLOAD', DIR_STORAGE . 'upload/');
+
+// DB (same as catalog)
+define('DB_DRIVER', 'mysqli');
+// ... same DB settings
+```
+</CodeGroup>
+
+<Warning>
+Never commit `config.php` or `admin/config.php` to version control. These files contain environment-specific settings and database credentials.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand OpenCart's architecture
+  </Card>
+  <Card title="Coding Standards" icon="code" href="/development/standards">
+    Follow coding conventions
+  </Card>
+  <Card title="MVC Pattern" icon="diagram-project" href="/development/mvc-pattern">
+    Learn the MVC pattern
+  </Card>
+  <Card title="Routing" icon="route" href="/development/routing">
+    Understand routing system
+  </Card>
+</CardGroup>

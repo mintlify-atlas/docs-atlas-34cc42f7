@@ -1,0 +1,675 @@
+---
+title: SEO Configuration
+description: Optimize your OpenCart store for search engines with SEO URLs, meta tags, and URL rewriting
+---
+
+## Overview
+
+Search Engine Optimization (SEO) in OpenCart helps your store rank better in search results and provides user-friendly URLs. The system includes SEO URL management, regex-based URL patterns, and per-entity meta tag configuration.
+
+## SEO URL System
+
+### URL Structure
+
+OpenCart converts dynamic URLs into clean, search-engine-friendly URLs:
+
+<Tabs>
+  <Tab title="Dynamic URLs">
+    ```
+    index.php?route=product/product&product_id=42
+    index.php?route=product/category&path=20_27
+    index.php?route=information/information&information_id=4
+    ```
+  </Tab>
+  
+  <Tab title="SEO URLs">
+    ```
+    macbook-pro-13-inch
+    laptops/macbooks
+    about-us
+    ```
+  </Tab>
+</Tabs>
+
+### Database Structure
+
+```sql
+-- SEO URL mappings
+CREATE TABLE `oc_seo_url` (
+  `seo_url_id` int NOT NULL AUTO_INCREMENT,
+  `store_id` int NOT NULL,
+  `language_id` int NOT NULL,
+  `key` varchar(64) NOT NULL,
+  `value` varchar(255) NOT NULL,
+  `keyword` varchar(255) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`seo_url_id`),
+  KEY `keyword` (`keyword`),
+  KEY `key_value` (`key`,`value`)
+);
+
+-- SEO regex patterns
+CREATE TABLE `oc_seo_regex` (
+  `seo_regex_id` int NOT NULL AUTO_INCREMENT,
+  `key` varchar(64) NOT NULL,
+  `match` varchar(255) NOT NULL,
+  `replace` varchar(255) NOT NULL,
+  `keyword` varchar(255) NOT NULL,
+  `value` varchar(255) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`seo_regex_id`)
+);
+```
+
+## Managing SEO URLs
+
+<Steps>
+  <Step title="Access SEO URL Manager">
+    Navigate to **Design → SEO URLs** in your admin panel.
+  </Step>
+  
+  <Step title="Add New SEO URL">
+    Click **Add New** to create a URL mapping:
+    
+    ```php
+    $seo_url_data = [
+        'store_id'    => 0,
+        'language_id' => 1,
+        'key'         => 'product_id',
+        'value'       => '42',
+        'keyword'     => 'macbook-pro-13',
+        'sort_order'  => 0
+    ];
+    ```
+  </Step>
+  
+  <Step title="Configure URL Components">
+    - **Key**: Entity type (product_id, category_id, information_id)
+    - **Value**: Entity ID
+    - **Keyword**: SEO-friendly URL slug
+    - **Store**: Select store (multi-store support)
+    - **Language**: Select language
+  </Step>
+</Steps>
+
+### SEO URL Controller
+
+```php
+namespace Opencart\Admin\Controller\Design;
+
+class SeoUrl extends \Opencart\System\Engine\Controller {
+    public function save(): void {
+        $this->load->language('design/seo_url');
+        $this->load->model('design/seo_url');
+        
+        $json = [];
+        
+        $required = [
+            'seo_url_id'  => 0,
+            'store_id'    => 0,
+            'language_id' => 0,
+            'key'         => '',
+            'value'       => '',
+            'keyword'     => ''
+        ];
+        
+        $post_info = $this->request->post + $required;
+        
+        // Validate key length
+        if (!oc_validate_length($post_info['key'], 1, 64)) {
+            $json['error']['key'] = 'Key must be 1-64 characters';
+        }
+        
+        // Validate value length
+        if (!oc_validate_length($post_info['value'], 1, 255)) {
+            $json['error']['value'] = 'Value must be 1-255 characters';
+        }
+        
+        // Check for duplicate key/value pair
+        $seo_url_info = $this->model_design_seo_url->getSeoUrlByKeyValue(
+            $post_info['key'],
+            $post_info['value'],
+            $post_info['store_id'],
+            $post_info['language_id']
+        );
+        
+        if ($seo_url_info && 
+            (!$post_info['seo_url_id'] || 
+             $seo_url_info['seo_url_id'] != $post_info['seo_url_id'])) {
+            $json['error']['value'] = 'This key/value pair already exists';
+        }
+        
+        // Validate keywords
+        $keywords = explode('/', $post_info['keyword']);
+        
+        foreach ($keywords as $keyword) {
+            if (!oc_validate_length($keyword, 1, 64)) {
+                $json['error']['keyword'] = 'Each keyword must be 1-64 characters';
+            }
+            
+            if (!oc_validate_path($keyword)) {
+                $json['error']['keyword'] = 'Keyword contains invalid characters';
+            }
+        }
+        
+        // Check for duplicate keyword
+        $seo_url_info = $this->model_design_seo_url->getSeoUrlByKeyword(
+            $post_info['keyword'],
+            $post_info['store_id']
+        );
+        
+        if ($seo_url_info && 
+            (($seo_url_info['key'] != $post_info['key']) || 
+             ($seo_url_info['value'] != $post_info['value']))) {
+            $json['error']['keyword'] = 'Keyword already in use';
+        }
+        
+        if (!$json) {
+            if (!$post_info['seo_url_id']) {
+                $json['seo_url_id'] = $this->model_design_seo_url->addSeoUrl(
+                    $post_info['key'],
+                    $post_info['value'],
+                    $post_info['keyword'],
+                    $post_info['store_id'],
+                    $post_info['language_id'],
+                    (int)$post_info['sort_order']
+                );
+            } else {
+                $this->model_design_seo_url->editSeoUrl(
+                    $post_info['seo_url_id'],
+                    $post_info['key'],
+                    $post_info['value'],
+                    $post_info['keyword'],
+                    $post_info['store_id'],
+                    $post_info['language_id'],
+                    (int)$post_info['sort_order']
+                );
+            }
+            
+            $json['success'] = 'SEO URL saved successfully';
+        }
+    }
+}
+```
+
+## Common SEO URL Patterns
+
+### Products
+
+```php
+// Product URLs
+[
+    'key'     => 'product_id',
+    'value'   => '42',
+    'keyword' => 'macbook-pro-13-inch'
+]
+
+// Result: /macbook-pro-13-inch
+```
+
+### Categories
+
+```php
+// Category URLs (hierarchical)
+[
+    'key'     => 'path',
+    'value'   => '20',
+    'keyword' => 'laptops'
+],
+[
+    'key'     => 'path',
+    'value'   => '20_27',
+    'keyword' => 'laptops/macbooks'
+]
+
+// Result: /laptops/macbooks
+```
+
+### Information Pages
+
+```php
+// Static pages
+[
+    'key'     => 'information_id',
+    'value'   => '4',
+    'keyword' => 'about-us'
+]
+
+// Result: /about-us
+```
+
+### Manufacturers
+
+```php
+// Manufacturer pages
+[
+    'key'     => 'manufacturer_id',
+    'value'   => '8',
+    'keyword' => 'apple'
+]
+
+// Result: /apple
+```
+
+## SEO Regex Patterns
+
+For dynamic URL generation, use regex patterns:
+
+### Accessing SEO Regex
+
+Go to **Design → SEO Regex** to create pattern-based rules.
+
+### Regex Controller
+
+```php
+namespace Opencart\Admin\Controller\Design;
+
+class SeoRegex extends \Opencart\System\Engine\Controller {
+    public function save(): void {
+        $this->load->model('design/seo_regex');
+        
+        $required = [
+            'seo_regex_id' => 0,
+            'key'          => '',
+            'match'        => '',
+            'replace'      => '',
+            'keyword'      => '',
+            'value'        => '',
+            'sort_order'   => 0
+        ];
+        
+        $post_info = $this->request->post + $required;
+        
+        if (!$post_info['seo_regex_id']) {
+            $json['seo_regex_id'] = $this->model_design_seo_regex
+                ->addSeoRegex($post_info);
+        } else {
+            $this->model_design_seo_regex->editSeoRegex(
+                $post_info['seo_regex_id'],
+                $post_info
+            );
+        }
+    }
+}
+```
+
+### Example Regex Patterns
+
+```php
+// Product pattern
+[
+    'key'     => 'product_id',
+    'match'   => '([0-9]+)',
+    'replace' => 'product-$1',
+    'keyword' => 'product-{id}',
+    'value'   => '{id}'
+]
+
+// Category path pattern
+[
+    'key'     => 'path',
+    'match'   => '([0-9_]+)',
+    'replace' => 'category-$1',
+    'keyword' => 'category/{path}',
+    'value'   => '{path}'
+]
+```
+
+## Enabling SEO URLs
+
+<Steps>
+  <Step title="Enable in Settings">
+    Go to **System → Settings → [Your Store] → Server** and enable SEO URLs.
+    
+    ```php
+    $this->model_setting_setting->editSetting('config', [
+        'config_seo_url' => 1
+    ], $store_id);
+    ```
+  </Step>
+  
+  <Step title="Configure .htaccess">
+    Ensure your `.htaccess` file contains URL rewrite rules:
+    
+    ```apache
+    # SEO URL Settings
+    RewriteEngine On
+    RewriteBase /
+    RewriteRule ^sitemap.xml$ index.php?route=extension/feed/google_sitemap [L]
+    RewriteRule ^googlebase.xml$ index.php?route=extension/feed/google_base [L]
+    RewriteRule ^system/storage/(.*) index.php?route=error/not_found [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !.*\.(ico|gif|jpg|jpeg|png|js|css)
+    RewriteRule ^([^?]*) index.php?_route_=$1 [L,QSA]
+    ```
+  </Step>
+  
+  <Step title="Verify Configuration">
+    Test SEO URLs by visiting a product or category page.
+  </Step>
+</Steps>
+
+<Note>
+  For Nginx servers, use equivalent rewrite rules in your nginx.conf.
+</Note>
+
+## Product SEO Configuration
+
+### Meta Tags
+
+Each product can have custom meta tags:
+
+```php
+$product_data = [
+    'meta_title'       => 'MacBook Pro 13-inch - Buy Online',
+    'meta_description' => 'Shop the latest MacBook Pro 13-inch with M2 chip. Free shipping and 1-year warranty.',
+    'meta_keyword'     => 'macbook, apple, laptop, m2 chip',
+    'tag'              => ['apple', 'laptop', 'macbook']
+];
+```
+
+### SEO URL Assignment
+
+```php
+// Add product SEO URL
+$this->model_design_seo_url->addSeoUrl(
+    'product_id',                    // Key
+    $product_id,                     // Value
+    'macbook-pro-13-inch-m2-chip',  // Keyword
+    0,                               // Store ID
+    1,                               // Language ID
+    0                                // Sort order
+);
+```
+
+## Category SEO Configuration
+
+### Hierarchical URLs
+
+```php
+// Parent category
+$this->model_design_seo_url->addSeoUrl(
+    'path',
+    '20',
+    'electronics',
+    0, 1, 0
+);
+
+// Child category
+$this->model_design_seo_url->addSeoUrl(
+    'path',
+    '20_27',
+    'electronics/laptops',
+    0, 1, 0
+);
+
+// Grandchild category
+$this->model_design_seo_url->addSeoUrl(
+    'path',
+    '20_27_35',
+    'electronics/laptops/macbooks',
+    0, 1, 0
+);
+```
+
+### Category Meta Tags
+
+```php
+$category_data = [
+    'meta_title'       => 'Laptops - Buy Online | Store Name',
+    'meta_description' => 'Browse our selection of laptops from top brands.',
+    'meta_keyword'     => 'laptops, computers, notebooks'
+];
+```
+
+## Multi-Language SEO
+
+<Tabs>
+  <Tab title="English URLs">
+    ```php
+    [
+        'language_id' => 1,
+        'key'         => 'product_id',
+        'value'       => '42',
+        'keyword'     => 'macbook-pro-13-inch'
+    ]
+    ```
+  </Tab>
+  
+  <Tab title="French URLs">
+    ```php
+    [
+        'language_id' => 2,
+        'key'         => 'product_id',
+        'value'       => '42',
+        'keyword'     => 'macbook-pro-13-pouces'
+    ]
+    ```
+  </Tab>
+  
+  <Tab title="German URLs">
+    ```php
+    [
+        'language_id' => 3,
+        'key'         => 'product_id',
+        'value'       => '42',
+        'keyword'     => 'macbook-pro-13-zoll'
+    ]
+    ```
+  </Tab>
+</Tabs>
+
+## SEO Best Practices
+
+### 1. Keyword Guidelines
+
+<Tip>
+  Create descriptive, keyword-rich URLs:
+  - Use hyphens (-) to separate words
+  - Keep URLs short and relevant
+  - Include primary keywords
+  - Avoid special characters
+  - Use lowercase letters
+</Tip>
+
+```php
+// ✅ Good keywords
+'macbook-pro-13-inch-m2'
+'mens-running-shoes-nike'
+'summer-dresses-2026'
+
+// ❌ Bad keywords
+'product123'
+'Macbook_Pro_13"'
+'MENS-RUNNING-SHOES!!!'
+```
+
+### 2. Meta Tag Optimization
+
+```php
+// Title: 50-60 characters
+'meta_title' => 'MacBook Pro 13" M2 Chip - Buy Online | Store'
+
+// Description: 150-160 characters
+'meta_description' => 'Shop the latest MacBook Pro 13-inch featuring the powerful M2 chip. Fast shipping, 1-year warranty, and expert support.'
+
+// Keywords: 5-10 relevant terms
+'meta_keyword' => 'macbook pro, m2 chip, apple laptop, 13 inch, buy macbook'
+```
+
+### 3. URL Structure
+
+```php
+// Logical hierarchy
+'/electronics/laptops/macbooks/macbook-pro-13'
+
+// Avoid deep nesting (3-4 levels max)
+// ❌ Too deep:
+'/home/products/electronics/computers/laptops/apple/macbooks/13-inch/m2/space-gray'
+```
+
+### 4. Canonical URLs
+
+```twig
+{# In your template #}
+<link rel="canonical" href="{{ canonical }}" />
+```
+
+## Programmatic SEO URL Management
+
+### Bulk Import SEO URLs
+
+```php
+public function importSeoUrls(array $data): void {
+    $this->load->model('design/seo_url');
+    
+    foreach ($data as $row) {
+        $this->model_design_seo_url->addSeoUrl(
+            $row['key'],
+            $row['value'],
+            $row['keyword'],
+            $row['store_id'],
+            $row['language_id'],
+            $row['sort_order']
+        );
+    }
+}
+```
+
+### Auto-Generate SEO URLs
+
+```php
+public function generateProductUrl(int $product_id): string {
+    $this->load->model('catalog/product');
+    
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    if ($product_info) {
+        // Create keyword from product name
+        $keyword = $this->createKeyword($product_info['name']);
+        
+        // Add SEO URL
+        $this->model_design_seo_url->addSeoUrl(
+            'product_id',
+            $product_id,
+            $keyword,
+            0,
+            $this->config->get('config_language_id'),
+            0
+        );
+        
+        return $keyword;
+    }
+}
+
+private function createKeyword(string $name): string {
+    // Convert to lowercase
+    $keyword = strtolower($name);
+    
+    // Replace spaces with hyphens
+    $keyword = str_replace(' ', '-', $keyword);
+    
+    // Remove special characters
+    $keyword = preg_replace('/[^a-z0-9-]/', '', $keyword);
+    
+    // Remove multiple hyphens
+    $keyword = preg_replace('/-+/', '-', $keyword);
+    
+    // Trim hyphens
+    $keyword = trim($keyword, '-');
+    
+    return $keyword;
+}
+```
+
+## Sitemap Generation
+
+Generate XML sitemaps for search engines:
+
+```php
+public function generateSitemap(): void {
+    $this->load->model('catalog/product');
+    $this->load->model('catalog/category');
+    $this->load->model('design/seo_url');
+    
+    $output = '<?xml version="1.0" encoding="UTF-8"?>';
+    $output .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    
+    // Add products
+    $products = $this->model_catalog_product->getProducts();
+    
+    foreach ($products as $product) {
+        $seo_url = $this->model_design_seo_url->getSeoUrlByKeyValue(
+            'product_id',
+            $product['product_id'],
+            0,
+            $this->config->get('config_language_id')
+        );
+        
+        if ($seo_url) {
+            $output .= '<url>';
+            $output .= '<loc>' . $this->url->link('product/product', 'product_id=' . $product['product_id']) . '</loc>';
+            $output .= '<lastmod>' . date('Y-m-d', strtotime($product['date_modified'])) . '</lastmod>';
+            $output .= '<changefreq>weekly</changefreq>';
+            $output .= '<priority>1.0</priority>';
+            $output .= '</url>';
+        }
+    }
+    
+    $output .= '</urlset>';
+    
+    // Save to file
+    file_put_contents(DIR_CATALOG . 'sitemap.xml', $output);
+}
+```
+
+## Troubleshooting
+
+### SEO URLs Not Working
+
+<Steps>
+  <Step title="Check .htaccess">
+    Verify `.htaccess` file exists and contains correct rewrite rules.
+  </Step>
+  
+  <Step title="Enable mod_rewrite">
+    Ensure Apache `mod_rewrite` is enabled:
+    ```bash
+    sudo a2enmod rewrite
+    sudo systemctl restart apache2
+    ```
+  </Step>
+  
+  <Step title="Check Settings">
+    Confirm SEO URLs are enabled in System → Settings → Server.
+  </Step>
+</Steps>
+
+### Duplicate Keyword Errors
+
+```php
+// Check for duplicates before adding
+$existing = $this->model_design_seo_url->getSeoUrlByKeyword(
+    $keyword,
+    $store_id
+);
+
+if ($existing) {
+    // Append suffix
+    $keyword .= '-' . $value;
+}
+```
+
+### 404 Errors on SEO URLs
+
+- Verify keyword is correctly stored in database
+- Check for typos in keyword
+- Ensure entity (product/category) exists and is enabled
+- Clear cache
+
+## Related Documentation
+
+- [Theme Management](/design/themes) - Customize SEO elements in themes
+- [Product Management](/store/products) - Configure product meta tags
+- [Category Management](/store/categories) - Set category SEO settings

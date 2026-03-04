@@ -1,0 +1,546 @@
+---
+title: Cart API  
+description: Manage shopping cart operations including adding products, calculating totals, and retrieving cart contents
+---
+
+## Overview
+
+The Cart API provides comprehensive cart management functionality. It handles adding products with options, validating stock availability, calculating totals, and maintaining cart state throughout the shopping session.
+
+**Controller Location:** `catalog/controller/api/cart.php`
+
+## Add Multiple Products
+
+Add multiple products to the cart in a single request.
+
+### Endpoint
+
+```
+POST /index.php?route=api/cart
+```
+
+### Request Body
+
+<ParamField body="product" type="array" required>
+  Array of products to add to cart
+</ParamField>
+
+<ParamField body="product[].product_id" type="integer" required>
+  Product ID
+</ParamField>
+
+<ParamField body="product[].quantity" type="integer" required>
+  Product quantity
+</ParamField>
+
+<ParamField body="product[].option" type="object">
+  Product options (key: product_option_id, value: option_value_id)
+</ParamField>
+
+<ParamField body="product[].subscription_plan_id" type="integer">
+  Subscription plan ID (for subscription products)
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'product' => [
+        [
+            'product_id' => 42,
+            'quantity' => 2,
+            'option' => [
+                5 => 12,  // Size: Large
+                3 => 8    // Color: Blue
+            ],
+            'subscription_plan_id' => 0
+        ],
+        [
+            'product_id' => 43,
+            'quantity' => 1,
+            'option' => [],
+            'subscription_plan_id' => 0
+        ]
+    ]
+];
+
+$response = $this->load->controller('api/cart', $data);
+```
+
+### Response
+
+<ResponseField name="success" type="string">
+  Success message when products added successfully
+</ResponseField>
+
+<ResponseField name="error" type="object">
+  Error object containing validation errors
+</ResponseField>
+
+### Success Response
+
+```json
+{
+  "success": "Products added to cart successfully!"
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "warning": "Unable to add products to cart!",
+    "product_0_option_5": "Size is required!",
+    "product_1_product": "Product does not exist!"
+  }
+}
+```
+
+## Add Product
+
+Add a single product to the cart.
+
+### Endpoint
+
+```
+POST /index.php?route=api/cart/addProduct
+```
+
+### Request Body
+
+<ParamField body="product_id" type="integer" required>
+  Product ID to add
+</ParamField>
+
+<ParamField body="quantity" type="integer" default={1}>
+  Quantity to add
+</ParamField>
+
+<ParamField body="option" type="object">
+  Product options as key-value pairs
+</ParamField>
+
+<ParamField body="subscription_plan_id" type="integer">
+  Subscription plan ID for subscription products
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'product_id' => 42,
+    'quantity' => 1,
+    'option' => [
+        5 => 12,  // Size option: Large
+        3 => 8    // Color option: Blue  
+    ],
+    'subscription_plan_id' => 0
+];
+
+$response = $this->load->controller('api/cart/addProduct', $data);
+```
+
+```bash
+curl -X POST 'https://your-store.com/index.php?route=api/cart/addProduct' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'product_id=42&quantity=1&option[5]=12&option[3]=8'
+```
+
+### Success Response
+
+```json
+{
+  "success": "Product added to cart successfully!"
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "warning": "Product is out of stock!",
+    "option_5": "Size is required!"
+  }
+}
+```
+
+## Get Products
+
+Retrieve all products currently in the cart.
+
+### Endpoint
+
+```
+GET /index.php?route=api/cart/getProducts
+```
+
+### Response
+
+Returns an array of cart products with full details.
+
+<ResponseField name="cart_id" type="string">
+  Unique cart item identifier
+</ResponseField>
+
+<ResponseField name="product_id" type="integer">
+  Product ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Product name
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Product model/SKU
+</ResponseField>
+
+<ResponseField name="option" type="array">
+  Selected product options
+</ResponseField>
+
+<ResponseField name="subscription" type="object">
+  Subscription details if applicable
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+  Quantity in cart
+</ResponseField>
+
+<ResponseField name="stock" type="boolean">
+  Stock availability
+</ResponseField>
+
+<ResponseField name="minimum" type="integer">
+  Minimum order quantity
+</ResponseField>
+
+<ResponseField name="subtract" type="boolean">
+  Whether to subtract from stock
+</ResponseField>
+
+<ResponseField name="price" type="float">
+  Unit price
+</ResponseField>
+
+<ResponseField name="total" type="float">
+  Line total (price × quantity)
+</ResponseField>
+
+<ResponseField name="reward" type="integer">
+  Reward points for this product
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  Product image path
+</ResponseField>
+
+<ResponseField name="weight" type="float">
+  Product weight
+</ResponseField>
+
+<ResponseField name="weight_class" type="string">
+  Weight unit
+</ResponseField>
+
+<ResponseField name="recurring" type="string">
+  Recurring/subscription information
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "cart_id": "abc123",
+    "product_id": 42,
+    "name": "Premium Wireless Headphones",
+    "model": "WH-1000XM4",
+    "option": [
+      {
+        "product_option_id": 218,
+        "product_option_value_id": 5,
+        "option_id": 5,
+        "option_value_id": 12,
+        "name": "Size",
+        "value": "Large",
+        "type": "select"
+      }
+    ],
+    "subscription": null,
+    "subscription_plan_id": 0,
+    "quantity": 2,
+    "minimum": 1,
+    "maximum": 0,
+    "stock": true,
+    "subtract": true,
+    "price": 249.99,
+    "total": 499.98,
+    "reward": 300,
+    "image": "catalog/products/headphones-main.jpg",
+    "weight": 0.25,
+    "weight_class": "kg",
+    "length": 7.3,
+    "width": 2.4,
+    "height": 9.9,
+    "length_class": "cm",
+    "recurring": "",
+    "tax_class_id": 9
+  }
+]
+```
+
+## Get Totals
+
+Calculate cart totals including taxes, shipping, and discounts.
+
+### Endpoint
+
+```
+GET /index.php?route=api/cart/getTotals
+```
+
+### Response
+
+Returns an array of total calculations.
+
+<ResponseField name="code" type="string">
+  Total type code (sub_total, shipping, tax, total, etc.)
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Display title
+</ResponseField>
+
+<ResponseField name="value" type="float">
+  Numeric value
+</ResponseField>
+
+<ResponseField name="text" type="string">
+  Formatted display value with currency
+</ResponseField>
+
+<ResponseField name="sort_order" type="integer">
+  Display order
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "code": "sub_total",
+    "title": "Sub-Total",
+    "value": 499.98,
+    "text": "$499.98",
+    "sort_order": 1
+  },
+  {
+    "code": "shipping",
+    "title": "Flat Shipping Rate",
+    "value": 5.00,
+    "text": "$5.00",
+    "sort_order": 3
+  },
+  {
+    "code": "tax",
+    "title": "Sales Tax (10%)",
+    "value": 50.00,
+    "text": "$50.00",
+    "sort_order": 5
+  },
+  {
+    "code": "total",
+    "title": "Total",
+    "value": 554.98,
+    "text": "$554.98",
+    "sort_order": 9
+  }
+]
+```
+
+## Validation
+
+The Cart API performs comprehensive validation:
+
+### Product Validation
+
+- **Product Exists** - Verifies product ID is valid and active
+- **Stock Availability** - Checks sufficient quantity is available
+- **Minimum Quantity** - Ensures minimum order quantity is met
+- **Stock Status** - Validates against `config_stock_checkout` setting
+
+```php
+// Source: cart.php:110-112
+if (!$this->config->get('config_stock_checkout') && 
+    (!$product_info['quantity'] || ($product_info['quantity'] < $product_total))) {
+    $output['error']['product_' . (int)$key . '_product'] = 'Product is out of stock';
+}
+```
+
+### Option Validation
+
+- **Required Options** - All required options must be provided
+- **Valid Option IDs** - Option IDs must belong to the product
+- **Valid Option Values** - Selected values must be valid for the option
+- **Option Stock** - Validates stock for options with inventory
+- **Regex Validation** - Custom validation patterns for text options
+
+```php
+// Source: cart.php:94-98
+if ($product_option['required'] && empty($option[$product_option['product_option_id']])) {
+    $output['error']['product_' . (int)$key . '_option_' . $product_option['product_option_id']] 
+        = sprintf('Required: %s', $product_option['name']);
+}
+```
+
+### Subscription Validation
+
+- **Valid Plan** - Subscription plan must be valid for the product
+- **Plan Required** - Subscription plan required if product has subscriptions
+
+```php
+// Source: cart.php:122-124
+if ($subscriptions && (!$subscription_plan_id || 
+    !in_array($subscription_plan_id, array_column($subscriptions, 'subscription_plan_id')))) {
+    $output['error']['product_' . (int)$key . '_subscription'] = 'Invalid subscription';
+}
+```
+
+## Product Options Example
+
+### Adding Product with Options
+
+```php
+// Product with Size and Color options
+$data = [
+    'product_id' => 42,
+    'quantity' => 1,
+    'option' => [
+        5 => 12,  // Option ID 5 (Size): Value 12 (Large)
+        3 => 8,   // Option ID 3 (Color): Value 8 (Blue)
+        7 => 'John Doe'  // Option ID 7 (Text engraving)
+    ]
+];
+
+$response = $this->load->controller('api/cart/addProduct', $data);
+```
+
+### Checkbox Options
+
+```php
+// Multiple checkbox selections
+$data = [
+    'product_id' => 45,
+    'quantity' => 1,
+    'option' => [
+        10 => [1, 3, 5]  // Multiple checkbox values
+    ]
+];
+```
+
+## Subscription Products
+
+### Adding Subscription Product
+
+```php
+$data = [
+    'product_id' => 50,
+    'quantity' => 1,
+    'subscription_plan_id' => 3  // Monthly subscription
+];
+
+$response = $this->load->controller('api/cart/addProduct', $data);
+```
+
+### Subscription in Cart Response
+
+```json
+{
+  "product_id": 50,
+  "name": "Monthly Coffee Subscription",
+  "subscription": {
+    "subscription_plan_id": 3,
+    "name": "Monthly Plan",
+    "trial_status": false,
+    "trial_price": 0,
+    "trial_price_text": "$0.00",
+    "trial_cycle": 0,
+    "trial_frequency": "month",
+    "trial_duration": 0,
+    "price": 29.99,
+    "price_text": "$29.99",
+    "cycle": 1,
+    "frequency": "month",
+    "duration": 0
+  },
+  "recurring": "$29.99 every month"
+}
+```
+
+## Complete Cart Workflow
+
+```php
+// 1. Add product to cart
+$add_response = $this->load->controller('api/cart/addProduct', [
+    'product_id' => 42,
+    'quantity' => 2
+]);
+
+if (isset($add_response['success'])) {
+    // 2. Get cart products
+    $products = $this->load->controller('api/cart/getProducts');
+    
+    // 3. Calculate totals
+    $totals = $this->load->controller('api/cart/getTotals');
+    
+    // 4. Display cart summary
+    foreach ($products as $product) {
+        echo $product['name'] . ': ' . $product['total'];
+    }
+    
+    foreach ($totals as $total) {
+        echo $total['title'] . ': ' . $total['text'];
+    }
+}
+```
+
+<Warning>
+Cart contents are stored in the session. Ensure the same session is maintained across requests to preserve cart state.
+</Warning>
+
+<Note>
+The cart automatically merges variant options with user-selected options. Variant products have predefined option values that are automatically applied.
+</Note>
+
+## Error Handling
+
+Common cart errors and their meanings:
+
+| Error Key | Meaning | Solution |
+|-----------|---------|----------|
+| `product_{n}_product` | Product not found or inactive | Verify product ID is valid |
+| `product_{n}_option_{m}` | Invalid or missing option | Provide valid option value |
+| `product_{n}_subscription` | Invalid subscription plan | Select valid subscription plan |
+| `warning` | General cart error | Check specific field errors |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Checkout API" icon="credit-card" href="/api/sales/checkout">
+    Proceed to checkout process
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Complete order confirmation
+  </Card>
+  
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    Browse products to add
+  </Card>
+  
+  <Card title="Customers API" icon="user" href="/api/sales/customers">
+    Set customer information
+  </Card>
+</CardGroup>

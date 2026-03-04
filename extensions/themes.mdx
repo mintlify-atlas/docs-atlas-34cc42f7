@@ -1,0 +1,631 @@
+---
+title: Theme Extensions
+description: Customize the visual appearance of your OpenCart store with theme extensions
+---
+
+Theme extensions control the visual appearance and layout of your OpenCart store. They provide templates, stylesheets, and assets that define how your store looks and feels to customers.
+
+## What Are Theme Extensions?
+
+Theme extensions in OpenCart are template systems that:
+
+- Define the visual layout and styling of your store
+- Provide customizable templates for all pages
+- Include CSS, JavaScript, and image assets
+- Support responsive design for mobile devices
+- Can be customized without affecting functionality
+
+<Note>
+  Theme extensions are located in `upload/extension/[vendor]/catalog/view/theme/` and configured through `admin/controller/extension/[vendor]/theme/`
+</Note>
+
+## Built-in Theme
+
+OpenCart 4 includes a default theme called "Basic":
+
+<Card title="Basic Theme" icon="palette">
+  The default OpenCart theme with a clean, modern design that's fully responsive and customizable
+</Card>
+
+### Basic Theme Location
+
+Location: `admin/controller/extension/opencart/theme/basic.php:1`
+
+The basic theme provides:
+- Responsive grid layout
+- Mobile-friendly navigation
+- Product display templates
+- Checkout flow templates
+- Account management pages
+
+## Theme Architecture
+
+### Directory Structure
+
+```
+extension/[vendor]/
+├── admin/
+│   └── controller/
+│       └── theme/
+│           └── [theme_name].php    # Theme configuration
+└── catalog/
+    └── view/
+        ├── template/
+        │   └── [theme_name]/
+        │       ├── common/
+        │       │   ├── header.twig
+        │       │   ├── footer.twig
+        │       │   └── menu.twig
+        │       ├── product/
+        │       │   ├── product.twig
+        │       │   ├── category.twig
+        │       │   └── search.twig
+        │       └── checkout/
+        │           └── checkout.twig
+        ├── stylesheet/
+        │   └── [theme_name].css
+        └── javascript/
+            └── [theme_name].js
+```
+
+### Admin Controller
+
+```php
+namespace Opencart\Admin\Controller\Extension\Opencart\Theme;
+
+class Basic extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/opencart/theme/basic');
+        
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Configuration form
+        $data['save'] = $this->url->link('extension/opencart/theme/basic.save');
+        $data['back'] = $this->url->link('marketplace/extension', '&type=theme');
+        
+        // Theme settings
+        $data['theme_basic_product_limit'] = 
+            $this->config->get('theme_basic_product_limit') ?: 15;
+        $data['theme_basic_image_width'] = 
+            $this->config->get('theme_basic_image_width') ?: 228;
+        $data['theme_basic_image_height'] = 
+            $this->config->get('theme_basic_image_height') ?: 228;
+        
+        // Color scheme
+        $data['theme_basic_primary_color'] = 
+            $this->config->get('theme_basic_primary_color') ?: '#3498db';
+        $data['theme_basic_secondary_color'] = 
+            $this->config->get('theme_basic_secondary_color') ?: '#2c3e50';
+        
+        // Status
+        $data['theme_basic_status'] = 
+            $this->config->get('theme_basic_status');
+        
+        $this->response->setOutput(
+            $this->load->view('extension/opencart/theme/basic', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/opencart/theme/basic');
+        
+        $json = [];
+        
+        if (!$this->user->hasPermission('modify', 'extension/opencart/theme/basic')) {
+            $json['error'] = $this->language->get('error_permission');
+        }
+        
+        if (!$json) {
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'theme_basic',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+## Template Engine (Twig)
+
+OpenCart uses Twig as its template engine. Twig templates use `.twig` extension and provide:
+
+- Template inheritance
+- Variable output
+- Control structures (loops, conditionals)
+- Filters and functions
+- Automatic escaping for security
+
+### Basic Template Structure
+
+```twig
+{# common/header.twig #}
+<!DOCTYPE html>
+<html dir="{{ direction }}" lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <base href="{{ base }}" />
+    
+    {% if description %}
+        <meta name="description" content="{{ description }}" />
+    {% endif %}
+    
+    {% if keywords %}
+        <meta name="keywords" content="{{ keywords }}" />
+    {% endif %}
+    
+    {# Stylesheets #}
+    {% for style in styles %}
+        <link href="{{ style.href }}" rel="stylesheet" media="{{ style.media }}" />
+    {% endfor %}
+    
+    {# Scripts #}
+    {% for script in scripts %}
+        <script src="{{ script.href }}" {% if script.postion == 'header' %}{% endif %}></script>
+    {% endfor %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="row">
+                <div class="col-sm-4">
+                    <div id="logo">
+                        {% if logo %}
+                            <a href="{{ home }}"><img src="{{ logo }}" title="{{ name }}" alt="{{ name }}" /></a>
+                        {% else %}
+                            <h1><a href="{{ home }}">{{ name }}</a></h1>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-sm-8">
+                    {{ search }}
+                    {{ cart }}
+                </div>
+            </div>
+        </div>
+    </header>
+    {{ menu }}
+```
+
+### Product Template Example
+
+```twig
+{# product/product.twig #}
+{{ header }}
+<div class="container">
+    <div class="row">
+        <div id="content" class="col-sm-12">
+            <div class="row">
+                <div class="col-sm-6">
+                    {# Product images #}
+                    <div class="product-images">
+                        {% if image %}
+                            <img src="{{ image }}" alt="{{ heading_title }}" class="img-responsive" />
+                        {% endif %}
+                        
+                        {% if images %}
+                            <div class="thumbnails">
+                                {% for img in images %}
+                                    <a href="{{ img.popup }}" class="thumbnail">
+                                        <img src="{{ img.thumb }}" alt="{{ heading_title }}" />
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="col-sm-6">
+                    {# Product info #}
+                    <h1>{{ heading_title }}</h1>
+                    
+                    {% if price %}
+                        <ul class="list-unstyled">
+                            <li>
+                                <h2>{{ price }}</h2>
+                            </li>
+                            {% if special %}
+                                <li>Regular: <span style="text-decoration: line-through;">{{ special }}</span></li>
+                            {% endif %}
+                        </ul>
+                    {% endif %}
+                    
+                    <div id="product">
+                        {# Options #}
+                        {% if options %}
+                            {% for option in options %}
+                                <div class="form-group">
+                                    <label>{{ option.name }}</label>
+                                    {# Render option input based on type #}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        {# Quantity #}
+                        <div class="form-group">
+                            <label>{{ text_qty }}</label>
+                            <input type="text" name="quantity" value="{{ minimum }}" class="form-control" />
+                        </div>
+                        
+                        {# Add to cart button #}
+                        <button type="button" id="button-cart" class="btn btn-primary btn-lg">
+                            {{ button_cart }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            {# Product description tabs #}
+            <div class="row">
+                <div class="col-sm-12">
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a href="#tab-description">{{ tab_description }}</a></li>
+                        {% if attribute_groups %}
+                            <li><a href="#tab-specification">{{ tab_attribute }}</a></li>
+                        {% endif %}
+                        {% if review_status %}
+                            <li><a href="#tab-review">{{ tab_review }}</a></li>
+                        {% endif %}
+                    </ul>
+                    
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="tab-description">
+                            {{ description }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{ footer }}
+```
+
+## Theme Configuration
+
+Themes can be configured with various settings:
+
+### Common Theme Settings
+
+<Accordion title="Layout Settings">
+  ```php
+  // Product grid columns
+  theme_{name}_product_limit = 15
+  
+  // Image dimensions
+  theme_{name}_image_width = 228
+  theme_{name}_image_height = 228
+  theme_{name}_thumb_width = 80
+  theme_{name}_thumb_height = 80
+  
+  // Popup image size
+  theme_{name}_popup_width = 800
+  theme_{name}_popup_height = 800
+  ```
+</Accordion>
+
+<Accordion title="Color Scheme">
+  ```php
+  // Primary brand color
+  theme_{name}_primary_color = '#3498db'
+  
+  // Secondary color
+  theme_{name}_secondary_color = '#2c3e50'
+  
+  // Accent colors
+  theme_{name}_success_color = '#27ae60'
+  theme_{name}_warning_color = '#f39c12'
+  theme_{name}_danger_color = '#e74c3c'
+  ```
+</Accordion>
+
+<Accordion title="Typography">
+  ```php
+  // Font family
+  theme_{name}_font_family = 'Open Sans'
+  
+  // Font sizes
+  theme_{name}_font_size_base = 14
+  theme_{name}_font_size_h1 = 36
+  theme_{name}_font_size_h2 = 30
+  ```
+</Accordion>
+
+## Customizing Themes
+
+### Override Templates
+
+<Warning>
+  Never modify core extension files directly. Always create a custom theme or use the theme override system.
+</Warning>
+
+To customize templates:
+
+1. **Create Custom Theme**: Copy theme directory with new name
+2. **Modify Templates**: Edit `.twig` files as needed
+3. **Update Styles**: Modify CSS in `stylesheet/` directory
+4. **Configure Theme**: Set as active in admin panel
+
+### Theme Override System
+
+OpenCart loads templates in this order:
+
+1. `catalog/view/theme/[active_theme]/template/...`
+2. `catalog/view/theme/default/template/...`
+3. Extension-specific templates
+
+### Custom CSS
+
+Add custom CSS without modifying theme files:
+
+**Admin Panel Method:**
+1. Go to **Design → Theme Editor**
+2. Select your theme
+3. Add custom CSS in the stylesheet editor
+
+**File Method:**
+```css
+/* catalog/view/theme/mytheme/stylesheet/custom.css */
+
+/* Override header styles */
+header {
+    background-color: #2c3e50;
+    padding: 20px 0;
+}
+
+/* Customize product cards */
+.product-card {
+    border: 1px solid #ecf0f1;
+    border-radius: 8px;
+    padding: 15px;
+    transition: transform 0.3s;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #3498db;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 4px;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+```
+
+## Responsive Design
+
+Ensure your theme works on all devices:
+
+```css
+/* Mobile-first approach */
+.product-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+    .product-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop */
+@media (min-width: 992px) {
+    .product-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+    .product-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+```
+
+## Developing Custom Themes
+
+### Theme Package Structure
+
+```
+extension/myvendor/
+├── install.json
+├── admin/
+│   ├── controller/
+│   │   └── theme/
+│   │       └── mytheme.php
+│   ├── language/
+│   │   └── en-gb/
+│   │       └── theme/
+│   │           └── mytheme.php
+│   └── view/
+│       └── template/
+│           └── theme/
+│               └── mytheme.twig
+└── catalog/
+    └── view/
+        ├── template/
+        │   └── mytheme/
+        │       ├── common/
+        │       ├── product/
+        │       ├── checkout/
+        │       └── account/
+        ├── stylesheet/
+        │   └── mytheme.css
+        └── javascript/
+            └── mytheme.js
+```
+
+### Install Manifest
+
+```json
+{
+    "name": "My Custom Theme",
+    "description": "A beautiful, responsive theme for OpenCart",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "link": "https://yoursite.com"
+}
+```
+
+### Theme Controller Template
+
+```php
+namespace Opencart\Admin\Controller\Extension\Myvendor\Theme;
+
+class Mytheme extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/myvendor/theme/mytheme');
+        
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        $data['save'] = $this->url->link('extension/myvendor/theme/mytheme.save');
+        $data['back'] = $this->url->link('marketplace/extension', '&type=theme');
+        
+        // Layout settings
+        $data['theme_mytheme_product_limit'] = 
+            $this->config->get('theme_mytheme_product_limit') ?: 12;
+        $data['theme_mytheme_product_description_length'] = 
+            $this->config->get('theme_mytheme_product_description_length') ?: 100;
+        
+        // Image dimensions
+        $data['theme_mytheme_image_product_width'] = 
+            $this->config->get('theme_mytheme_image_product_width') ?: 228;
+        $data['theme_mytheme_image_product_height'] = 
+            $this->config->get('theme_mytheme_image_product_height') ?: 228;
+        
+        // Color scheme
+        $data['theme_mytheme_color_primary'] = 
+            $this->config->get('theme_mytheme_color_primary') ?: '#007bff';
+        $data['theme_mytheme_color_secondary'] = 
+            $this->config->get('theme_mytheme_color_secondary') ?: '#6c757d';
+        
+        // Custom options
+        $data['theme_mytheme_enable_quickview'] = 
+            $this->config->get('theme_mytheme_enable_quickview');
+        $data['theme_mytheme_enable_wishlist'] = 
+            $this->config->get('theme_mytheme_enable_wishlist');
+        $data['theme_mytheme_enable_compare'] = 
+            $this->config->get('theme_mytheme_enable_compare');
+        
+        // Status
+        $data['theme_mytheme_status'] = 
+            $this->config->get('theme_mytheme_status');
+        
+        $data['header'] = $this->load->controller('common/header');
+        $data['column_left'] = $this->load->controller('common/column_left');
+        $data['footer'] = $this->load->controller('common/footer');
+        
+        $this->response->setOutput(
+            $this->load->view('extension/myvendor/theme/mytheme', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/myvendor/theme/mytheme');
+        
+        $json = [];
+        
+        if (!$this->user->hasPermission('modify', 'extension/myvendor/theme/mytheme')) {
+            $json['error'] = $this->language->get('error_permission');
+        }
+        
+        if (!$json) {
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'theme_mytheme',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Mobile-First" icon="mobile">
+    Design for mobile devices first, then enhance for larger screens
+  </Card>
+  <Card title="Performance" icon="gauge-high">
+    Optimize images, minify CSS/JS, and use lazy loading
+  </Card>
+  <Card title="Accessibility" icon="universal-access">
+    Follow WCAG guidelines for accessible design
+  </Card>
+  <Card title="Browser Testing" icon="globe">
+    Test across different browsers and devices
+  </Card>
+</CardGroup>
+
+## Theme Development Tools
+
+### Browser DevTools
+Use browser developer tools to:
+- Inspect and modify CSS in real-time
+- Debug JavaScript
+- Test responsive layouts
+- Monitor performance
+
+### Design → Theme Editor
+Built-in theme editor in admin panel:
+1. Go to **Design → Theme Editor**
+2. Select theme and file
+3. Edit directly in browser
+4. Changes are saved immediately
+
+<Warning>
+  Use Theme Editor cautiously. Always backup files before making changes.
+</Warning>
+
+## Troubleshooting
+
+### Theme Not Appearing
+
+1. **Check installation**: Is theme extension installed?
+2. **Check status**: Is theme enabled in settings?
+3. **Clear cache**: Dashboard → Developer Settings → Refresh
+4. **Check file permissions**: Ensure files are readable
+
+### Styles Not Loading
+
+1. **Check file path**: Verify CSS file location
+2. **Check browser console**: Look for 404 errors
+3. **Clear browser cache**: Force refresh (Ctrl+F5)
+4. **Check minification**: Disable CSS minification if enabled
+
+### Template Errors
+
+1. **Check Twig syntax**: Ensure proper tag closing
+2. **Check variables**: Verify variable names match controller
+3. **Check error log**: Review system/storage/logs/error.log
+4. **Enable debug**: Set display_errors in config for development
+
+## Next Steps
+
+- [Module Extensions](/extensions/modules) - Display modules
+- [Payment Extensions](/extensions/payments) - Payment integration
+- [Shipping Extensions](/extensions/shipping) - Shipping calculators
+- [Extensions Overview](/extensions/overview) - Extension system basics

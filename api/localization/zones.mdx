@@ -1,0 +1,548 @@
+---
+title: Zones API
+description: Access state, province, and region information for countries
+---
+
+## Overview
+
+The Zones API provides access to state, province, and region data for countries. Zones (also called states or provinces) are subdivisions of countries used for address validation, tax calculations, and shipping.
+
+**Model Location:** `catalog/model/localisation/zone.php`
+
+## Get Zone
+
+Retrieve information about a specific zone by ID.
+
+### Method
+
+```php
+$this->load->model('localisation/zone');
+$zone_info = $this->model_localisation_zone->getZone($zone_id);
+```
+
+### Parameters
+
+<ParamField path="zone_id" type="integer" required>
+  Zone ID
+</ParamField>
+
+### Response
+
+<ResponseField name="zone_id" type="integer">
+  Zone identifier
+</ResponseField>
+
+<ResponseField name="country_id" type="integer">
+  Country this zone belongs to
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Zone name (e.g., "California", "Ontario")
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Zone code (e.g., "CA", "ON")
+</ResponseField>
+
+<ResponseField name="status" type="boolean">
+  Zone enabled status
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "zone_id": 3655,
+  "country_id": 223,
+  "name": "New York",
+  "code": "NY",
+  "status": true
+}
+```
+
+## Get Zones by Country
+
+Retrieve all zones for a specific country.
+
+### Method
+
+```php
+$this->load->model('localisation/zone');
+$zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+```
+
+### Parameters
+
+<ParamField path="country_id" type="integer" required>
+  Country ID to get zones for
+</ParamField>
+
+### Response
+
+Returns an array of zone objects sorted by name.
+
+### Example: US States
+
+```php
+$country_id = 223;  // United States
+$zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+
+foreach ($zones as $zone) {
+    echo $zone['name'] . ' (' . $zone['code'] . ')';
+}
+```
+
+### Example Response
+
+```json
+[
+  {
+    "zone_id": 3613,
+    "country_id": 223,
+    "name": "Alabama",
+    "code": "AL",
+    "status": true
+  },
+  {
+    "zone_id": 3614,
+    "country_id": 223,
+    "name": "Alaska",
+    "code": "AK",
+    "status": true
+  },
+  {
+    "zone_id": 3615,
+    "country_id": 223,
+    "name": "Arizona",
+    "code": "AZ",
+    "status": true
+  },
+  {
+    "zone_id": 3616,
+    "country_id": 223,
+    "name": "Arkansas",
+    "code": "AR",
+    "status": true
+  },
+  {
+    "zone_id": 3617,
+    "country_id": 223,
+    "name": "California",
+    "code": "CA",
+    "status": true
+  }
+]
+```
+
+## Get Total Zones by Country
+
+Get the count of zones for a country.
+
+### Method
+
+```php
+$this->load->model('localisation/zone');
+$total = $this->model_localisation_zone->getTotalZonesByCountryId($country_id);
+```
+
+### Parameters
+
+<ParamField path="country_id" type="integer" required>
+  Country ID
+</ParamField>
+
+### Example
+
+```php
+// Check if country has zones
+$country_id = 223;  // United States
+$zone_count = $this->model_localisation_zone->getTotalZonesByCountryId($country_id);
+
+if ($zone_count > 0) {
+    echo "Country has {$zone_count} states/provinces";
+    // Display zone dropdown
+} else {
+    echo "No zones for this country";
+    // Zone selection not required
+}
+```
+
+## Zone Validation
+
+Zones are validated when setting addresses.
+
+### From Address Controllers
+
+```php
+// Source: payment_address.php:66-73
+$this->load->model('localisation/zone');
+
+// Total Zones
+$zone_total = $this->model_localisation_zone->getTotalZonesByCountryId(
+    (int)$post_info['payment_country_id']
+);
+
+if ($zone_total && !$post_info['payment_zone_id']) {
+    $output['error']['payment_zone'] = 'Please select a region / state!';
+}
+```
+
+<Note>
+If a country has zones, a zone selection is required. Countries without zones (like some small island nations) don't require zone selection.
+</Note>
+
+## Zone Dropdown
+
+Build a zone selection dropdown.
+
+### Example
+
+```php
+function getZoneDropdown($country_id, $selected_zone_id = 0) {
+    $this->load->model('localisation/zone');
+    
+    $zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+    $options = [];
+    
+    foreach ($zones as $zone) {
+        $options[] = [
+            'value' => $zone['zone_id'],
+            'text' => $zone['name'],
+            'code' => $zone['code'],
+            'selected' => $zone['zone_id'] == $selected_zone_id
+        ];
+    }
+    
+    return $options;
+}
+
+// Get US states
+$states = getZoneDropdown(223, 3655);
+```
+
+### Example Response
+
+```json
+[
+  {
+    "value": 3613,
+    "text": "Alabama",
+    "code": "AL",
+    "selected": false
+  },
+  {
+    "value": 3614,
+    "text": "Alaska",
+    "code": "AK",
+    "selected": false
+  },
+  {
+    "value": 3655,
+    "text": "New York",
+    "code": "NY",
+    "selected": true
+  }
+]
+```
+
+## Dynamic Zone Loading
+
+Load zones dynamically when country is selected.
+
+### Example
+
+```php
+function getZonesForCountry($country_id) {
+    $this->load->model('localisation/zone');
+    
+    $zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+    
+    if (empty($zones)) {
+        return [
+            'has_zones' => false,
+            'zones' => []
+        ];
+    }
+    
+    $zone_list = [];
+    
+    foreach ($zones as $zone) {
+        $zone_list[] = [
+            'zone_id' => $zone['zone_id'],
+            'name' => $zone['name'],
+            'code' => $zone['code']
+        ];
+    }
+    
+    return [
+        'has_zones' => true,
+        'zones' => $zone_list
+    ];
+}
+
+// AJAX endpoint for country change
+if (isset($this->request->get['country_id'])) {
+    $country_id = (int)$this->request->get['country_id'];
+    $result = getZonesForCountry($country_id);
+    
+    header('Content-Type: application/json');
+    echo json_encode($result);
+}
+```
+
+## Common Zones
+
+### United States (country_id: 223)
+
+| Zone ID | Name | Code |
+|---------|------|------|
+| 3617 | California | CA |
+| 3625 | Florida | FL |
+| 3641 | New York | NY |
+| 3670 | Texas | TX |
+
+### Canada (country_id: 38)
+
+| Zone ID | Name | Code |
+|---------|------|------|
+| 525 | Alberta | AB |
+| 526 | British Columbia | BC |
+| 529 | Ontario | ON |
+| 531 | Quebec | QC |
+
+### United Kingdom (country_id: 222)
+
+| Zone ID | Name | Code |
+|---------|------|------|
+| 3513 | England | ENG |
+| 3514 | Scotland | SCT |
+| 3515 | Wales | WLS |
+| 3516 | Northern Ireland | NIR |
+
+### Australia (country_id: 13)
+
+| Zone ID | Name | Code |
+|---------|------|------|
+| 185 | New South Wales | NSW |
+| 186 | Queensland | QLD |
+| 187 | South Australia | SA |
+| 188 | Tasmania | TAS |
+| 189 | Victoria | VIC |
+| 190 | Western Australia | WA |
+
+## Use in Addresses
+
+Zones are used in address storage and validation.
+
+### Store Zone Information
+
+```php
+// Get zone details for address
+$this->load->model('localisation/zone');
+$zone_info = $this->model_localisation_zone->getZone($post_info['payment_zone_id']);
+
+if ($zone_info) {
+    $zone = $zone_info['name'];
+    $zone_code = $zone_info['code'];
+} else {
+    $zone = '';
+    $zone_code = '';
+}
+
+$this->session->data['payment_address'] = [
+    'zone_id' => $post_info['payment_zone_id'],
+    'zone' => $zone,
+    'zone_code' => $zone_code,
+    // other address fields...
+];
+```
+
+## Tax Zones
+
+Zones are used for tax calculations.
+
+### Example
+
+```php
+// Tax rates can be zone-specific
+function getTaxRate($country_id, $zone_id) {
+    $this->load->model('localisation/tax_rate');
+    
+    // Get tax rate for specific zone
+    $tax_rate = $this->model_localisation_tax_rate->getTaxRate(
+        $country_id,
+        $zone_id
+    );
+    
+    return $tax_rate;
+}
+
+// California sales tax
+$ca_tax = getTaxRate(223, 3617);  // ~7.25%
+
+// New York sales tax  
+$ny_tax = getTaxRate(223, 3655);  // ~8.875%
+```
+
+## Shipping Zones
+
+Zones can affect shipping rates and availability.
+
+```php
+// Check shipping availability to zone
+function getShippingMethods($country_id, $zone_id) {
+    $this->load->model('checkout/shipping_method');
+    
+    $address = [
+        'country_id' => $country_id,
+        'zone_id' => $zone_id
+    ];
+    
+    return $this->model_checkout_shipping_method->getMethods($address);
+}
+```
+
+## API Usage Example
+
+```php
+class ZoneAPI {
+    public function getZonesByCountry($country_id) {
+        $this->load->model('localisation/zone');
+        
+        $zones = $this->model_localisation_zone->getZonesByCountryId($country_id);
+        
+        if (empty($zones)) {
+            return [
+                'country_id' => $country_id,
+                'has_zones' => false,
+                'zones' => []
+            ];
+        }
+        
+        $data = [];
+        
+        foreach ($zones as $zone) {
+            $data[] = [
+                'id' => $zone['zone_id'],
+                'name' => $zone['name'],
+                'code' => $zone['code']
+            ];
+        }
+        
+        return [
+            'country_id' => $country_id,
+            'has_zones' => true,
+            'total' => count($data),
+            'zones' => $data
+        ];
+    }
+    
+    public function getZoneInfo($zone_id) {
+        $this->load->model('localisation/zone');
+        $this->load->model('localisation/country');
+        
+        $zone = $this->model_localisation_zone->getZone($zone_id);
+        
+        if (!$zone) {
+            return ['error' => 'Zone not found'];
+        }
+        
+        $country = $this->model_localisation_country->getCountry($zone['country_id']);
+        
+        return [
+            'zone' => [
+                'id' => $zone['zone_id'],
+                'name' => $zone['name'],
+                'code' => $zone['code']
+            ],
+            'country' => [
+                'id' => $country['country_id'],
+                'name' => $country['name'],
+                'iso_2' => $country['iso_code_2']
+            ]
+        ];
+    }
+}
+
+$api = new ZoneAPI();
+
+// Get US states
+$us_zones = $api->getZonesByCountry(223);
+
+// Get zone details
+$ny_info = $api->getZoneInfo(3655);
+```
+
+## Caching
+
+Zone data is cached for performance:
+
+```php
+// Source: zone.php:50-60
+$sql = "SELECT * FROM `" . DB_PREFIX . "zone` `z` 
+    LEFT JOIN `" . DB_PREFIX . "zone_description` `zd` ON (`z`.`zone_id` = `zd`.`zone_id`) 
+    WHERE `z`.`country_id` = '" . (int)$country_id . "' 
+    AND `zd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "' 
+    AND `z`.`status` = '1' 
+    ORDER BY `zd`.`name`";
+
+$key = md5($sql);
+
+$zone_data = $this->cache->get('zone.' . $key);
+
+if (!$zone_data) {
+    $query = $this->db->query($sql);
+    $zone_data = $query->rows;
+    $this->cache->set('zone.' . $key, $zone_data);
+}
+```
+
+<Note>
+Zone data is cached to improve performance. Cache keys are generated using MD5 hash of the SQL query.
+</Note>
+
+## Complete Address with Zone
+
+```php
+function getCompleteAddress($country_id, $zone_id) {
+    $this->load->model('localisation/country');
+    $this->load->model('localisation/zone');
+    
+    $country = $this->model_localisation_country->getCountry($country_id);
+    $zone = $this->model_localisation_zone->getZone($zone_id);
+    
+    return [
+        'country_id' => $country_id,
+        'country' => $country['name'],
+        'iso_code_2' => $country['iso_code_2'],
+        'iso_code_3' => $country['iso_code_3'],
+        'zone_id' => $zone_id,
+        'zone' => $zone['name'],
+        'zone_code' => $zone['code'],
+        'postcode_required' => (bool)$country['postcode_required']
+    ];
+}
+
+// Example: New York, USA
+$address = getCompleteAddress(223, 3655);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Countries API" icon="globe" href="/api/localization/countries">
+    Access country information
+  </Card>
+  
+  <Card title="Addresses API" icon="location-dot" href="/api/account/addresses">
+    Manage customer addresses
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create orders with addresses
+  </Card>
+  
+  <Card title="Currencies API" icon="dollar-sign" href="/api/localization/currencies">
+    Currency localization
+  </Card>
+</CardGroup>

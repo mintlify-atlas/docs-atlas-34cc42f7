@@ -1,0 +1,412 @@
+---
+title: Category Management
+description: Organize your OpenCart product catalog with hierarchical categories and subcategories
+---
+
+Categories help organize your products into logical groups, making it easier for customers to browse and find what they need. OpenCart supports unlimited hierarchical category structures.
+
+## Category Overview
+
+Categories in OpenCart provide:
+
+- **Hierarchical Structure** - Create parent and child categories with unlimited nesting
+- **Multi-Language Support** - Category names and descriptions in multiple languages
+- **SEO-Friendly URLs** - Custom URLs for each category
+- **Category Images** - Visual representation of categories
+- **Filters** - Assign filters to help customers narrow down products
+- **Layouts** - Custom page layouts per category
+- **Multi-Store** - Assign categories to specific stores
+
+## Creating Categories
+
+### Required Category Information
+
+<Warning>
+The following fields are required when creating a category:
+- **Category Name** (1-255 characters per language)
+- **Meta Title** (1-255 characters per language)
+- **Status** - Enabled or Disabled
+</Warning>
+
+### Basic Category Structure
+
+```php
+$category_data = [
+    'category_id'          => 0,  // Auto-generated
+    'image'                => 'catalog/categories/electronics.jpg',
+    'parent_id'            => 0,  // 0 for top-level category
+    'sort_order'           => 1,
+    'status'               => 1   // 1 = enabled, 0 = disabled
+];
+```
+
+## Category Descriptions
+
+Categories support multi-language content:
+
+<Accordion title="Category Description Structure">
+```php
+$category_description = [
+    1 => [ // English
+        'name'             => 'Electronics',
+        'description'      => '<p>Browse our selection of electronic devices...</p>',
+        'meta_title'       => 'Electronics - Your Store Name',
+        'meta_description' => 'Shop the latest electronics including laptops, phones, and tablets',
+        'meta_keyword'     => 'electronics, gadgets, technology'
+    ],
+    2 => [ // Spanish
+        'name'             => 'Electrónica',
+        'description'      => '<p>Explore nuestra selección de dispositivos electrónicos...</p>',
+        'meta_title'       => 'Electrónica - Nombre de tu Tienda',
+        'meta_description' => 'Compra los últimos productos electrónicos',
+        'meta_keyword'     => 'electrónica, aparatos, tecnología'
+    ]
+];
+```
+</Accordion>
+
+## Hierarchical Categories
+
+### Creating Category Trees
+
+Organize categories in parent-child relationships:
+
+```
+Electronics (parent_id: 0)
+├── Computers (parent_id: Electronics ID)
+│   ├── Laptops (parent_id: Computers ID)
+│   ├── Desktops (parent_id: Computers ID)
+│   └── Tablets (parent_id: Computers ID)
+├── Phones (parent_id: Electronics ID)
+│   ├── Smartphones (parent_id: Phones ID)
+│   └── Feature Phones (parent_id: Phones ID)
+└── Audio (parent_id: Electronics ID)
+    ├── Headphones (parent_id: Audio ID)
+    └── Speakers (parent_id: Audio ID)
+```
+
+### Setting Parent Categories
+
+```php
+// Create parent category
+$parent_category = [
+    'parent_id' => 0,  // Top-level category
+    'category_description' => [
+        1 => ['name' => 'Electronics']
+    ]
+];
+
+// Create child category
+$child_category = [
+    'parent_id' => 5,  // ID of Electronics category
+    'category_description' => [
+        1 => ['name' => 'Computers']
+    ]
+];
+```
+
+<Note>
+The `path` field in categories shows the full hierarchy (e.g., "Electronics > Computers > Laptops"). This is automatically maintained by OpenCart.
+</Note>
+
+## Category Images
+
+### Setting Category Images
+
+```php
+$category['image'] = 'catalog/categories/computers.jpg';
+```
+
+<Note>
+Category images are displayed on the category listing page and can be used in category layouts. Recommended size varies by theme but typically 256x256 pixels or larger.
+</Note>
+
+## Category Filters
+
+Assign filters to categories to help customers narrow product selections:
+
+```php
+$category_filters = [
+    12, // Brand filter
+    15, // Price range filter
+    18  // Color filter
+];
+```
+
+<Accordion title="How Filters Work">
+Filters allow customers to refine product searches within categories. For example:
+
+- In the "Computers" category, show filters for:
+  - Processor Type (Intel, AMD)
+  - RAM Size (4GB, 8GB, 16GB)
+  - Screen Size (13", 15", 17")
+  - Price Range
+
+Filters are created separately in the Filter management section and then assigned to categories.
+</Accordion>
+
+## Store Assignment
+
+Assign categories to specific stores:
+
+```php
+$category_stores = [
+    0,  // Main store
+    2,  // Additional store
+    3   // Another store
+];
+```
+
+<Warning>
+Categories must be assigned to at least one store. If you have multiple stores, ensure categories are assigned to the appropriate stores where they should appear.
+</Warning>
+
+## SEO Configuration
+
+### Creating SEO-Friendly URLs
+
+```php
+$category_seo_url = [
+    0 => [ // Store ID
+        1 => 'computers',           // English URL
+        2 => 'ordenadores'          // Spanish URL
+    ],
+    2 => [ // Different store
+        1 => 'computers-laptops',
+        2 => 'ordenadores-portatiles'
+    ]
+];
+```
+
+### URL Hierarchy
+
+For nested categories, OpenCart builds hierarchical URLs:
+
+```
+Parent URL:  /electronics
+Child URL:   /electronics/computers
+Grandchild:  /electronics/computers/laptops
+```
+
+<Note>
+Only the last segment of the URL is stored in the database. The full path is generated automatically based on the category hierarchy.
+</Note>
+
+## Category Layouts
+
+Assign custom layouts to categories:
+
+```php
+$category_layout = [
+    0 => 3,  // Layout ID 3 for main store
+    2 => 5   // Layout ID 5 for store 2
+];
+```
+
+Layouts control the appearance of category pages including:
+- Column structure (1, 2, or 3 columns)
+- Module positions
+- Widget placement
+
+## Category Filtering & Sorting
+
+The category listing page supports various filters:
+
+### Available Filters
+
+- `filter_name` - Search by category name
+- `filter_store_id` - Filter by store
+- `filter_language_id` - Filter by language
+- `filter_status` - Show enabled/disabled categories
+
+### Sorting Options
+
+- Sort by **name** (alphabetically)
+- Sort by **status** (enabled first)
+- Sort by **sort_order** (custom ordering)
+
+```php
+$filter_data = [
+    'filter_name'        => 'Electronics',
+    'filter_store_id'    => 0,
+    'filter_language_id' => 1,
+    'filter_status'      => 1,
+    'sort'               => 'name',
+    'order'              => 'ASC',
+    'start'              => 0,
+    'limit'              => 20
+];
+```
+
+## Category Repair Function
+
+OpenCart includes a repair function for category paths:
+
+<Warning>
+If your category hierarchy becomes corrupted (incorrect paths or missing parent relationships), use the Repair Categories function. This rebuilds all category paths and relationships.
+</Warning>
+
+### When to Use Repair
+
+- Categories show incorrect hierarchies
+- Category paths are missing
+- After manual database modifications
+- After importing categories from external sources
+
+```php
+// Repair function rebuilds category paths
+$this->model_catalog_category->repairCategories();
+```
+
+## Bulk Operations
+
+<CardGroup cols={2}>
+  <Card title="Enable Categories" icon="toggle-on">
+    Activate multiple categories simultaneously
+  </Card>
+  
+  <Card title="Disable Categories" icon="toggle-off">
+    Deactivate categories without deleting them
+  </Card>
+  
+  <Card title="Delete Categories" icon="trash">
+    Remove multiple categories at once
+  </Card>
+  
+  <Card title="Repair Hierarchy" icon="wrench">
+    Fix category path and relationship issues
+  </Card>
+</CardGroup>
+
+<Note>
+Deleting a category does not delete the products in that category. Products will simply no longer be associated with the deleted category.
+</Note>
+
+## Category Display Settings
+
+### Sort Order
+
+Control the display order of categories:
+
+```php
+$category['sort_order'] = 1;
+```
+
+Categories with lower sort order values appear first. Categories with the same sort order are sorted alphabetically.
+
+### Status
+
+Control category visibility:
+
+```php
+$category['status'] = 1;  // 1 = visible, 0 = hidden
+```
+
+## Best Practices
+
+1. **Plan Your Hierarchy** - Design category structure before creating categories
+2. **Use Clear Names** - Choose descriptive, customer-friendly category names
+3. **Limit Depth** - Avoid more than 3-4 levels of nesting for better UX
+4. **Add Images** - Use high-quality images for better visual appeal
+5. **Optimize SEO** - Create keyword-rich URLs and meta descriptions
+6. **Assign Filters** - Help customers find products easily
+7. **Use Sort Order** - Control category display order logically
+8. **Check Paths** - Verify category paths display correctly
+9. **Multi-Language** - Provide translations for all languages
+10. **Regular Maintenance** - Review and update category structure periodically
+
+## Category Navigation
+
+### Breadcrumbs
+
+OpenCart automatically generates breadcrumb navigation:
+
+```
+Home > Electronics > Computers > Laptops
+```
+
+### Category Menu
+
+Categories appear in navigation menus based on:
+- Parent-child relationships
+- Sort order
+- Status (enabled/disabled)
+
+## Advanced Features
+
+### Category Filters Example
+
+<Accordion title="Complete Filter Configuration">
+```php
+// Assign filters to computer category
+$filter_config = [
+    'category_id' => 15, // Computers category
+    'filters' => [
+        [
+            'filter_id' => 1,
+            'group'     => 'Processor',
+            'name'      => 'Intel Core i5'
+        ],
+        [
+            'filter_id' => 2,
+            'group'     => 'Processor',
+            'name'      => 'Intel Core i7'
+        ],
+        [
+            'filter_id' => 3,
+            'group'     => 'RAM',
+            'name'      => '8GB'
+        ],
+        [
+            'filter_id' => 4,
+            'group'     => 'RAM',
+            'name'      => '16GB'
+        ]
+    ]
+];
+```
+</Accordion>
+
+## Technical Reference
+
+### Controller
+
+Location: `/upload/admin/controller/catalog/category.php`
+
+Key methods:
+- `index()` - Display category listing
+- `form()` - Show add/edit category form  
+- `save()` - Save category data
+- `delete()` - Delete categories
+- `enable()` / `disable()` - Toggle category status
+- `repair()` - Repair category hierarchy
+- `autocomplete()` - AJAX category search
+
+### Model
+
+Location: `/upload/admin/model/catalog/category.php`
+
+Key methods:
+- `addCategory()` - Create new category
+- `editCategory()` - Update category
+- `deleteCategory()` - Remove category
+- `getCategory()` - Fetch category data
+- `getCategories()` - Get category list with filters
+- `getPaths()` - Get category path hierarchy
+- `getPath()` - Get category path string
+- `repairCategories()` - Rebuild category structure
+
+### Database Tables
+
+- `oc_category` - Main category data
+- `oc_category_description` - Multi-language descriptions
+- `oc_category_filter` - Category filter assignments
+- `oc_category_to_store` - Store assignments
+- `oc_category_to_layout` - Layout assignments
+- `oc_category_path` - Category hierarchy paths
+
+## Related Documentation
+
+- [Catalog Overview](/store/catalog) - Overall catalog management
+- [Product Management](/store/products) - Managing products in categories
+- [Orders](/store/orders) - Processing orders

@@ -1,0 +1,486 @@
+---
+title: Currencies API
+description: Access currency information and exchange rates
+---
+
+## Overview
+
+The Currencies API provides access to currency information including codes, symbols, exchange rates, and formatting. This enables multi-currency support in your OpenCart store.
+
+**Model Location:** `catalog/model/localisation/currency.php`
+
+## Get Currency
+
+Retrieve information about a specific currency by ID.
+
+### Method
+
+```php
+$this->load->model('localisation/currency');
+$currency_info = $this->model_localisation_currency->getCurrency($currency_id);
+```
+
+### Parameters
+
+<ParamField path="currency_id" type="integer" required>
+  Currency ID
+</ParamField>
+
+### Response
+
+<ResponseField name="currency_id" type="integer">
+  Currency identifier
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Currency name
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Currency code (USD, EUR, GBP, etc.)
+</ResponseField>
+
+<ResponseField name="symbol_left" type="string">
+  Currency symbol displayed on left (e.g., "$")
+</ResponseField>
+
+<ResponseField name="symbol_right" type="string">
+  Currency symbol displayed on right
+</ResponseField>
+
+<ResponseField name="decimal_place" type="integer">
+  Number of decimal places
+</ResponseField>
+
+<ResponseField name="value" type="float">
+  Exchange rate relative to default currency
+</ResponseField>
+
+<ResponseField name="status" type="boolean">
+  Currency enabled status
+</ResponseField>
+
+<ResponseField name="date_modified" type="string">
+  Last exchange rate update
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "currency_id": 1,
+  "title": "US Dollar",
+  "code": "USD",
+  "symbol_left": "$",
+  "symbol_right": "",
+  "decimal_place": 2,
+  "value": 1.00000000,
+  "status": true,
+  "date_modified": "2024-03-15 10:30:00"
+}
+```
+
+## Get Currency By Code
+
+Retrieve currency information using currency code.
+
+### Method
+
+```php
+$this->load->model('localisation/currency');
+$currency_info = $this->model_localisation_currency->getCurrencyByCode($code);
+```
+
+### Parameters
+
+<ParamField path="code" type="string" required>
+  Currency code (e.g., "USD", "EUR", "GBP")
+</ParamField>
+
+### Example
+
+```php
+$currency_info = $this->model_localisation_currency->getCurrencyByCode('EUR');
+
+if ($currency_info) {
+    echo "Euro exchange rate: " . $currency_info['value'];
+}
+```
+
+## Get Currencies
+
+Retrieve all active currencies.
+
+### Method
+
+```php
+$this->load->model('localisation/currency');
+$currencies = $this->model_localisation_currency->getCurrencies();
+```
+
+### Response
+
+Returns an array of currency objects indexed by currency code.
+
+### Example Response
+
+```json
+{
+  "USD": {
+    "currency_id": 1,
+    "title": "US Dollar",
+    "code": "USD",
+    "symbol_left": "$",
+    "symbol_right": "",
+    "decimal_place": 2,
+    "value": 1.00000000,
+    "status": true
+  },
+  "EUR": {
+    "currency_id": 2,
+    "title": "Euro",
+    "code": "EUR",
+    "symbol_left": "",
+    "symbol_right": "€",
+    "decimal_place": 2,
+    "value": 0.85000000,
+    "status": true
+  },
+  "GBP": {
+    "currency_id": 3,
+    "title": "Pound Sterling",
+    "code": "GBP",
+    "symbol_left": "£",
+    "symbol_right": "",
+    "decimal_place": 2,
+    "value": 0.73000000,
+    "status": true
+  }
+}
+```
+
+## Currency Conversion
+
+The Currency library provides conversion methods:
+
+### Convert Currency
+
+```php
+// Convert amount from one currency to another
+$amount = 100;
+$from_currency = 'USD';
+$to_currency = 'EUR';
+
+$converted = $this->currency->convert($amount, $from_currency, $to_currency);
+
+echo "$100 USD = €" . number_format($converted, 2);
+// Output: $100 USD = €85.00
+```
+
+### Format Currency
+
+```php
+// Format amount with currency symbol
+$amount = 123.45;
+$currency_code = 'USD';
+
+$formatted = $this->currency->format($amount, $currency_code);
+
+echo $formatted;
+// Output: $123.45
+```
+
+### Format with Custom Options
+
+```php
+// Format with specific currency settings
+$amount = 1234.56;
+$currency_code = 'EUR';
+$value = 0.85;  // Exchange rate
+$symbol_left = '';
+$symbol_right = '€';
+$decimal_place = 2;
+
+$formatted = $this->currency->format(
+    $amount,
+    $currency_code,
+    $value,
+    $symbol_left,
+    $symbol_right,
+    $decimal_place
+);
+
+echo $formatted;
+// Output: 1,234.56€
+```
+
+## Update Exchange Rates
+
+Update exchange rate for a currency.
+
+### Method
+
+```php
+$this->load->model('localisation/currency');
+$this->model_localisation_currency->editValueByCode($code, $value);
+```
+
+### Parameters
+
+<ParamField path="code" type="string" required>
+  Currency code
+</ParamField>
+
+<ParamField path="value" type="float" required>
+  New exchange rate value
+</ParamField>
+
+### Example
+
+```php
+// Update EUR exchange rate
+$this->model_localisation_currency->editValueByCode('EUR', 0.85);
+
+echo "Exchange rate updated";
+```
+
+<Note>
+Exchange rates are relative to the default/base currency (usually USD with value 1.0). All other currencies are calculated relative to this base.
+</Note>
+
+## Currency Selection
+
+Set currency for current session:
+
+```php
+// Set session currency
+$this->session->data['currency'] = 'EUR';
+
+// All prices will now be displayed in EUR
+$price = $this->currency->format(100, $this->session->data['currency']);
+```
+
+## Multi-Currency Pricing
+
+### Display Prices in Multiple Currencies
+
+```php
+$this->load->model('localisation/currency');
+$this->load->model('catalog/product');
+
+$product_id = 42;
+$product_info = $this->model_catalog_product->getProduct($product_id);
+
+if ($product_info) {
+    $currencies = $this->model_localisation_currency->getCurrencies();
+    
+    foreach ($currencies as $code => $currency) {
+        $price = $this->currency->format(
+            $product_info['price'],
+            $code
+        );
+        
+        echo "{$currency['title']}: {$price}\n";
+    }
+}
+
+// Output:
+// US Dollar: $299.99
+// Euro: €254.99
+// Pound Sterling: £218.99
+```
+
+### Convert Product Prices
+
+```php
+function getProductInCurrency($product_id, $currency_code) {
+    $this->load->model('catalog/product');
+    
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    if ($product_info) {
+        return [
+            'product_id' => $product_info['product_id'],
+            'name' => $product_info['name'],
+            'price' => $this->currency->format(
+                $product_info['price'],
+                $currency_code
+            ),
+            'currency' => $currency_code
+        ];
+    }
+    
+    return null;
+}
+
+// Get product price in EUR
+$product = getProductInCurrency(42, 'EUR');
+```
+
+## Currency Switcher
+
+Build a currency switcher for customers:
+
+```php
+function getCurrencySwitcher() {
+    $this->load->model('localisation/currency');
+    
+    $currencies = $this->model_localisation_currency->getCurrencies();
+    $current_currency = $this->session->data['currency'] ?? 'USD';
+    
+    $data = [
+        'current' => $current_currency,
+        'currencies' => []
+    ];
+    
+    foreach ($currencies as $code => $currency) {
+        $data['currencies'][] = [
+            'code' => $code,
+            'title' => $currency['title'],
+            'symbol' => $currency['symbol_left'] ?: $currency['symbol_right'],
+            'active' => $code === $current_currency
+        ];
+    }
+    
+    return $data;
+}
+
+$switcher = getCurrencySwitcher();
+```
+
+### Example Response
+
+```json
+{
+  "current": "USD",
+  "currencies": [
+    {
+      "code": "USD",
+      "title": "US Dollar",
+      "symbol": "$",
+      "active": true
+    },
+    {
+      "code": "EUR",
+      "title": "Euro",
+      "symbol": "€",
+      "active": false
+    },
+    {
+      "code": "GBP",
+      "title": "Pound Sterling",
+      "symbol": "£",
+      "active": false
+    }
+  ]
+}
+```
+
+## Currency Formatting Examples
+
+### Different Currency Formats
+
+```php
+// US Dollar - symbol on left
+$usd = $this->currency->format(1234.56, 'USD');
+// Output: $1,234.56
+
+// Euro - symbol on right
+$eur = $this->currency->format(1234.56, 'EUR');
+// Output: 1,234.56€
+
+// Japanese Yen - no decimals
+$jpy = $this->currency->format(1234.56, 'JPY');
+// Output: ¥1,235
+
+// Bitcoin - 8 decimals
+$btc = $this->currency->format(1234.56789012, 'BTC');
+// Output: ₿1,234.56789012
+```
+
+## API Usage Example
+
+```php
+class CurrencyAPI {
+    public function getCurrencies() {
+        $this->load->model('localisation/currency');
+        
+        $currencies = $this->model_localisation_currency->getCurrencies();
+        $data = [];
+        
+        foreach ($currencies as $code => $currency) {
+            $data[] = [
+                'code' => $code,
+                'name' => $currency['title'],
+                'symbol' => $currency['symbol_left'] ?: $currency['symbol_right'],
+                'rate' => (float)$currency['value'],
+                'decimals' => (int)$currency['decimal_place']
+            ];
+        }
+        
+        return ['currencies' => $data];
+    }
+    
+    public function convertAmount($amount, $from, $to) {
+        $converted = $this->currency->convert($amount, $from, $to);
+        
+        return [
+            'original' => [
+                'amount' => $amount,
+                'currency' => $from,
+                'formatted' => $this->currency->format($amount, $from)
+            ],
+            'converted' => [
+                'amount' => $converted,
+                'currency' => $to,
+                'formatted' => $this->currency->format($converted, $to)
+            ]
+        ];
+    }
+}
+
+$api = new CurrencyAPI();
+
+// Get all currencies
+$currencies = $api->getCurrencies();
+
+// Convert currency
+$conversion = $api->convertAmount(100, 'USD', 'EUR');
+```
+
+## Common Currency Codes
+
+| Code | Name | Symbol |
+|------|------|--------|
+| USD | US Dollar | $ |
+| EUR | Euro | € |
+| GBP | Pound Sterling | £ |
+| JPY | Japanese Yen | ¥ |
+| CAD | Canadian Dollar | C$ |
+| AUD | Australian Dollar | A$ |
+| CNY | Chinese Yuan | ¥ |
+| INR | Indian Rupee | ₹ |
+
+<Warning>
+Exchange rates should be updated regularly using automated currency update extensions or manual updates to ensure accurate pricing.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    View product pricing
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Cart totals with currency
+  </Card>
+  
+  <Card title="Countries API" icon="globe" href="/api/localization/countries">
+    Access country information
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create orders with currency
+  </Card>
+</CardGroup>

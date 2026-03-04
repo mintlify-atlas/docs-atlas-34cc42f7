@@ -1,0 +1,226 @@
+---
+title: Extensions Overview
+description: Understanding OpenCart's modular extension system for customizing your store
+---
+
+OpenCart is built on a powerful extension system that allows you to add, modify, and customize functionality without altering the core codebase. Extensions enable you to add payment gateways, shipping methods, modules, themes, and much more.
+
+## What Are Extensions?
+
+Extensions are modular components that extend OpenCart's functionality. They follow a structured architecture and can be installed, configured, and uninstalled through the admin panel without affecting other parts of your store.
+
+### Extension Types
+
+OpenCart supports multiple extension types, each serving a specific purpose:
+
+<CardGroup cols={2}>
+  <Card title="Payment" icon="credit-card" href="/extensions/payments">
+    Payment gateway integrations for processing customer transactions
+  </Card>
+  <Card title="Shipping" icon="truck">
+    Shipping method calculators for delivery cost estimation
+  </Card>
+  <Card title="Module" icon="puzzle-piece" href="/extensions/modules">
+    Display modules for product listings, banners, and content blocks
+  </Card>
+  <Card title="Theme" icon="palette" href="/extensions/themes">
+    Visual themes that control your store's appearance
+  </Card>
+  <Card title="Total" icon="calculator">
+    Order total modifiers for taxes, discounts, and fees
+  </Card>
+  <Card title="Report" icon="chart-line">
+    Analytics and reporting extensions for business insights
+  </Card>
+  <Card title="Dashboard" icon="dashboard">
+    Admin dashboard widgets for quick overview
+  </Card>
+  <Card title="Fraud" icon="shield">
+    Anti-fraud detection systems
+  </Card>
+</CardGroup>
+
+## Extension Architecture
+
+All extensions in OpenCart follow a consistent MVC (Model-View-Controller) structure:
+
+```
+extension/
+└── [vendor]/
+    ├── admin/
+    │   ├── controller/    # Admin panel logic
+    │   ├── model/         # Database interactions
+    │   ├── view/          # Admin templates
+    │   └── language/      # Admin translations
+    └── catalog/
+        ├── controller/    # Frontend logic
+        ├── model/         # Data access
+        ├── view/          # Frontend templates
+        └── language/      # Store translations
+```
+
+### Namespace Convention
+
+Extensions use PHP namespaces following this pattern:
+
+```php
+Opencart\Admin\Controller\Extension\[Vendor]\[Type]\[Name]
+Opencart\Catalog\Controller\Extension\[Vendor]\[Type]\[Name]
+```
+
+<Note>
+  The default OpenCart extensions use `Opencart` as the vendor namespace, located in `upload/extension/opencart/`.
+</Note>
+
+## Managing Extensions
+
+### Installation
+
+1. Navigate to **Extensions → Extensions** in the admin panel
+2. Select the extension type from the dropdown
+3. Find your extension in the list
+4. Click the **Install** button (green plus icon)
+5. Click **Edit** to configure the extension settings
+
+### Configuration
+
+Each extension has its own configuration page accessible through:
+
+```
+Admin Panel → Extensions → Extensions → [Type] → Edit
+```
+
+Common configuration options include:
+
+- **Status**: Enable or disable the extension
+- **Sort Order**: Control the display/execution order
+- **Geo Zone**: Limit availability to specific regions
+- Extension-specific settings
+
+### Uninstallation
+
+<Warning>
+  Uninstalling an extension may remove associated data. Always backup your database before uninstalling extensions.
+</Warning>
+
+To uninstall:
+
+1. Go to **Extensions → Extensions**
+2. Select the extension type
+3. Click the **Uninstall** button (red minus icon)
+
+## Built-in Extensions
+
+OpenCart comes with a comprehensive set of default extensions:
+
+<Accordion title="Payment Extensions (4)">
+  - **Bank Transfer**: Accept direct bank transfers
+  - **Cash on Delivery (COD)**: Payment upon delivery
+  - **Cheque**: Accept check payments
+  - **Free Checkout**: For zero-value orders
+</Accordion>
+
+<Accordion title="Shipping Extensions (5)">
+  - **Flat Rate**: Fixed shipping cost
+  - **Free Shipping**: No shipping charge
+  - **Item-based**: Cost per item quantity
+  - **Pickup**: In-store pickup option
+  - **Weight-based**: Cost calculated by weight
+</Accordion>
+
+<Accordion title="Module Extensions (13+)">
+  - **Account**: Customer account links
+  - **Banner**: Image slider and banners
+  - **Bestsellers**: Popular products display
+  - **Category**: Category navigation
+  - **Featured**: Highlighted products
+  - **Latest**: Recently added products
+  - **Special**: Products on sale
+  - And more...
+</Accordion>
+
+## Extension Development
+
+When developing custom extensions:
+
+### Controller Structure
+
+Every extension controller extends the base controller class:
+
+```php
+namespace Opencart\Admin\Controller\Extension\YourVendor\Payment;
+
+class YourPayment extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        // Load language files
+        $this->load->language('extension/yourvendor/payment/yourpayment');
+        
+        // Set page title
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Load view
+        $this->response->setOutput($this->load->view('extension/yourvendor/payment/yourpayment', $data));
+    }
+    
+    public function save(): void {
+        // Save configuration
+        $this->load->model('setting/setting');
+        $this->model_setting_setting->editSetting('payment_yourpayment', $this->request->post);
+    }
+}
+```
+
+### Key Methods
+
+- `index()`: Display the configuration page
+- `save()`: Process and save settings
+- `install()`: Run when extension is installed (optional)
+- `uninstall()`: Run when extension is uninstalled (optional)
+
+### Configuration Storage
+
+Extension settings are stored in the `setting` table with keys prefixed by type:
+
+```
+payment_{code}_{setting}
+shipping_{code}_{setting}
+module_{code}_{setting}
+```
+
+## Extension Marketplace
+
+OpenCart has an official marketplace where you can:
+
+- Browse thousands of third-party extensions
+- Purchase premium extensions
+- Download free extensions
+- Read reviews and ratings
+- Get support from developers
+
+Visit the marketplace at: [https://www.opencart.com/index.php?route=marketplace/extension](https://www.opencart.com/index.php?route=marketplace/extension)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Namespaces" icon="folder-tree">
+    Always use proper namespace conventions to avoid conflicts with other extensions
+  </Card>
+  <Card title="Language Files" icon="language">
+    Store all text strings in language files for easy translation
+  </Card>
+  <Card title="Permission Checks" icon="lock">
+    Validate user permissions before modifying data
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation">
+    Implement proper validation and error handling
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Explore specific extension types:
+
+- [Module Extensions](/extensions/modules) - Content and display modules
+- [Payment Extensions](/extensions/payments) - Payment gateway integration
+- [Shipping Extensions](/extensions/shipping) - Shipping calculators
+- [Theme Extensions](/extensions/themes) - Visual customization

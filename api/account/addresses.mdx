@@ -1,0 +1,534 @@
+---
+title: Addresses API
+description: Manage customer addresses for payment and shipping
+---
+
+## Overview
+
+The Addresses API provides functionality for managing customer addresses including adding, editing, retrieving, and deleting addresses. Addresses are used for both payment (billing) and shipping (delivery) purposes.
+
+**Model Location:** `catalog/model/account/address.php`
+
+## Add Address
+
+Create a new address for a customer.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$address_id = $this->model_account_address->addAddress($customer_id, $data);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID who owns this address
+</ParamField>
+
+<ParamField path="firstname" type="string" required>
+  First name (1-32 characters)
+</ParamField>
+
+<ParamField path="lastname" type="string" required>
+  Last name (1-32 characters)
+</ParamField>
+
+<ParamField path="company" type="string">
+  Company name
+</ParamField>
+
+<ParamField path="address_1" type="string" required>
+  Address line 1 (3-128 characters)
+</ParamField>
+
+<ParamField path="address_2" type="string">
+  Address line 2
+</ParamField>
+
+<ParamField path="city" type="string" required>
+  City (2-128 characters)
+</ParamField>
+
+<ParamField path="postcode" type="string">
+  Postal/ZIP code (2-10 characters, if required by country)
+</ParamField>
+
+<ParamField path="country_id" type="integer" required>
+  Country ID
+</ParamField>
+
+<ParamField path="zone_id" type="integer" required>
+  Zone/State/Province ID
+</ParamField>
+
+<ParamField path="custom_field" type="object">
+  Custom address fields
+</ParamField>
+
+<ParamField path="default" type="boolean" default={false}>
+  Set as default address
+</ParamField>
+
+### Example Request
+
+```php
+$address_data = [
+    'firstname'    => 'John',
+    'lastname'     => 'Doe',
+    'company'      => 'Acme Corporation',
+    'address_1'    => '123 Main Street',
+    'address_2'    => 'Suite 100',
+    'postcode'     => '10001',
+    'city'         => 'New York',
+    'zone_id'      => 3655,  // New York state
+    'country_id'   => 223,   // United States
+    'custom_field' => [],
+    'default'      => 1
+];
+
+$this->load->model('account/address');
+$address_id = $this->model_account_address->addAddress($customer_id, $address_data);
+
+echo "New address ID: " . $address_id;
+```
+
+### Response
+
+Returns the new address ID (integer).
+
+```php
+42  // New address_id
+```
+
+## Edit Address
+
+Update an existing address.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$this->model_account_address->editAddress($customer_id, $address_id, $data);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID who owns the address
+</ParamField>
+
+<ParamField path="address_id" type="integer" required>
+  Address ID to update
+</ParamField>
+
+<ParamField path="data" type="object" required>
+  Address data (same fields as Add Address)
+</ParamField>
+
+### Example
+
+```php
+$updated_address = [
+    'firstname'    => 'John',
+    'lastname'     => 'Doe',
+    'company'      => 'New Company Inc',
+    'address_1'    => '456 Oak Avenue',
+    'address_2'    => 'Apt 5B',
+    'postcode'     => '10002',
+    'city'         => 'New York',
+    'zone_id'      => 3655,
+    'country_id'   => 223,
+    'custom_field' => [],
+    'default'      => 0
+];
+
+$this->model_account_address->editAddress($customer_id, $address_id, $updated_address);
+```
+
+## Get Address
+
+Retrieve a specific address by ID.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$address_info = $this->model_account_address->getAddress($customer_id, $address_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+<ParamField path="address_id" type="integer" required>
+  Address ID to retrieve
+</ParamField>
+
+### Response
+
+<ResponseField name="address_id" type="integer">
+  Address identifier
+</ResponseField>
+
+<ResponseField name="customer_id" type="integer">
+  Customer owner
+</ResponseField>
+
+<ResponseField name="firstname" type="string">
+  First name
+</ResponseField>
+
+<ResponseField name="lastname" type="string">
+  Last name
+</ResponseField>
+
+<ResponseField name="company" type="string">
+  Company name
+</ResponseField>
+
+<ResponseField name="address_1" type="string">
+  Address line 1
+</ResponseField>
+
+<ResponseField name="address_2" type="string">
+  Address line 2
+</ResponseField>
+
+<ResponseField name="city" type="string">
+  City
+</ResponseField>
+
+<ResponseField name="postcode" type="string">
+  Postal code
+</ResponseField>
+
+<ResponseField name="country_id" type="integer">
+  Country ID
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  Country name
+</ResponseField>
+
+<ResponseField name="iso_code_2" type="string">
+  Country ISO code (2 letters)
+</ResponseField>
+
+<ResponseField name="iso_code_3" type="string">
+  Country ISO code (3 letters)
+</ResponseField>
+
+<ResponseField name="zone_id" type="integer">
+  Zone/State ID
+</ResponseField>
+
+<ResponseField name="zone" type="string">
+  Zone/State name
+</ResponseField>
+
+<ResponseField name="zone_code" type="string">
+  Zone/State code
+</ResponseField>
+
+<ResponseField name="address_format" type="string">
+  Address format template
+</ResponseField>
+
+<ResponseField name="custom_field" type="string">
+  JSON-encoded custom fields
+</ResponseField>
+
+<ResponseField name="default" type="boolean">
+  Whether this is the default address
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "address_id": 42,
+  "customer_id": 123,
+  "firstname": "John",
+  "lastname": "Doe",
+  "company": "Acme Corporation",
+  "address_1": "123 Main Street",
+  "address_2": "Suite 100",
+  "city": "New York",
+  "postcode": "10001",
+  "country_id": 223,
+  "country": "United States",
+  "iso_code_2": "US",
+  "iso_code_3": "USA",
+  "zone_id": 3655,
+  "zone": "New York",
+  "zone_code": "NY",
+  "address_format": "{firstname} {lastname}\n{company}\n{address_1}\n{address_2}\n{city}, {zone} {postcode}\n{country}",
+  "custom_field": "{}",
+  "default": true
+}
+```
+
+## Get Addresses
+
+Retrieve all addresses for a customer.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$addresses = $this->model_account_address->getAddresses($customer_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+### Response
+
+Returns an array of address objects.
+
+### Example
+
+```php
+$customer_id = 123;
+$addresses = $this->model_account_address->getAddresses($customer_id);
+
+foreach ($addresses as $address) {
+    echo $address['address_id'] . ': ';
+    echo $address['firstname'] . ' ' . $address['lastname'] . ', ';
+    echo $address['city'] . ', ' . $address['zone'];
+    
+    if ($address['default']) {
+        echo ' (Default)';
+    }
+    
+    echo "\n";
+}
+```
+
+## Delete Address
+
+Delete an address.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$this->model_account_address->deleteAddresses($customer_id, $address_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+<ParamField path="address_id" type="integer" required>
+  Address ID to delete
+</ParamField>
+
+### Example
+
+```php
+$this->model_account_address->deleteAddresses($customer_id, $address_id);
+```
+
+## Get Total Addresses
+
+Get count of addresses for a customer.
+
+### Method
+
+```php
+$this->load->model('account/address');
+$total = $this->model_account_address->getTotalAddresses($customer_id);
+```
+
+### Example
+
+```php
+$count = $this->model_account_address->getTotalAddresses(123);
+echo "Customer has {$count} saved addresses";
+```
+
+## Default Address
+
+When an address is set as default:
+
+1. The new address gets `default = 1`
+2. All other addresses for that customer get `default = 0`
+3. Only one address per customer can be default
+
+```php
+// Source: address.php:46-48
+if (!empty($data['default'])) {
+    $this->db->query("UPDATE `" . DB_PREFIX . "address` SET `default` = '0' 
+        WHERE `address_id` != '" . (int)$address_id . "' 
+        AND `customer_id` = '" . (int)$customer_id . "'");
+}
+```
+
+## Use in API Orders
+
+### Set Payment Address
+
+```php
+// Get saved address
+$this->load->model('account/address');
+$address = $this->model_account_address->getAddress($customer_id, $address_id);
+
+if ($address) {
+    // Use for payment address
+    $payment_data = [
+        'payment_firstname'  => $address['firstname'],
+        'payment_lastname'   => $address['lastname'],
+        'payment_company'    => $address['company'],
+        'payment_address_1'  => $address['address_1'],
+        'payment_address_2'  => $address['address_2'],
+        'payment_city'       => $address['city'],
+        'payment_postcode'   => $address['postcode'],
+        'payment_country_id' => $address['country_id'],
+        'payment_zone_id'    => $address['zone_id'],
+        'payment_custom_field' => json_decode($address['custom_field'], true)
+    ];
+    
+    $this->load->controller('api/payment_address', $payment_data);
+}
+```
+
+### Set Shipping Address
+
+```php
+// Use saved address for shipping
+$address = $this->model_account_address->getAddress($customer_id, $address_id);
+
+if ($address) {
+    $shipping_data = [
+        'shipping_firstname'  => $address['firstname'],
+        'shipping_lastname'   => $address['lastname'],
+        'shipping_company'    => $address['company'],
+        'shipping_address_1'  => $address['address_1'],
+        'shipping_address_2'  => $address['address_2'],
+        'shipping_city'       => $address['city'],
+        'shipping_postcode'   => $address['postcode'],
+        'shipping_country_id' => $address['country_id'],
+        'shipping_zone_id'    => $address['zone_id'],
+        'shipping_custom_field' => json_decode($address['custom_field'], true)
+    ];
+    
+    $this->load->controller('api/shipping_address', $shipping_data);
+}
+```
+
+## Address Format
+
+Address format is country-specific:
+
+```php
+// Example US format
+"{firstname} {lastname}
+{company}
+{address_1}
+{address_2}
+{city}, {zone} {postcode}
+{country}"
+
+// Example UK format  
+"{firstname} {lastname}
+{company}
+{address_1}
+{address_2}
+{city}
+{postcode}
+{country}"
+```
+
+## Complete Address Management Example
+
+```php
+class AddressManager {
+    public function manageCustomerAddresses($customer_id) {
+        $this->load->model('account/address');
+        
+        // Get all addresses
+        $addresses = $this->model_account_address->getAddresses($customer_id);
+        
+        if (empty($addresses)) {
+            // Add first address
+            $address_id = $this->addNewAddress($customer_id);
+        } else {
+            // Use existing default address
+            $default_address = null;
+            
+            foreach ($addresses as $address) {
+                if ($address['default']) {
+                    $default_address = $address;
+                    break;
+                }
+            }
+            
+            if (!$default_address) {
+                $default_address = $addresses[0];
+            }
+            
+            return $default_address;
+        }
+    }
+    
+    private function addNewAddress($customer_id) {
+        $data = [
+            'firstname' => 'John',
+            'lastname' => 'Doe',
+            'address_1' => '123 Main St',
+            'city' => 'New York',
+            'postcode' => '10001',
+            'country_id' => 223,
+            'zone_id' => 3655,
+            'default' => 1
+        ];
+        
+        return $this->model_account_address->addAddress($customer_id, $data);
+    }
+}
+```
+
+<Note>
+Addresses are customer-specific. The customer_id parameter ensures addresses can only be accessed by their owner.
+</Note>
+
+## Validation
+
+Address validation is performed by the API address controllers:
+
+- First name: 1-32 characters
+- Last name: 1-32 characters
+- Address: 3-128 characters
+- City: 2-128 characters
+- Country: Must exist and be active
+- Zone: Must exist if country has zones
+- Postcode: 2-10 characters (if required by country)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Use addresses in orders
+  </Card>
+  
+  <Card title="Countries API" icon="globe" href="/api/localization/countries">
+    Get country information
+  </Card>
+  
+  <Card title="Zones API" icon="map" href="/api/localization/zones">
+    Get zone/state information
+  </Card>
+  
+  <Card title="Customers API" icon="user" href="/api/sales/customers">
+    Manage customer data
+  </Card>
+</CardGroup>

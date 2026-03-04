@@ -1,0 +1,676 @@
+---
+title: Banner Management
+description: Create and manage promotional banners with images, links, and multi-language support in OpenCart
+---
+
+## Overview
+
+Banners are promotional images or slideshows displayed throughout your OpenCart store. They can be used for advertising products, promotions, or any marketing content. OpenCart's banner system supports multiple images per banner, multi-language content, and flexible positioning.
+
+## Banner System Architecture
+
+### Database Structure
+
+```sql
+-- Main banner table
+CREATE TABLE `oc_banner` (
+  `banner_id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`banner_id`)
+);
+
+-- Banner images (multi-language)
+CREATE TABLE `oc_banner_image` (
+  `banner_image_id` int NOT NULL AUTO_INCREMENT,
+  `banner_id` int NOT NULL,
+  `language_id` int NOT NULL,
+  `title` varchar(64) NOT NULL,
+  `link` varchar(255) NOT NULL,
+  `image` varchar(255) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`banner_image_id`)
+);
+```
+
+### Banner Components
+
+- **Name**: Internal identifier for admin reference
+- **Status**: Enable/disable banner visibility
+- **Images**: Multiple images with language-specific content
+- **Title**: Alt text and caption for each image
+- **Link**: Click destination URL
+- **Sort Order**: Display sequence for multiple images
+
+## Creating Banners
+
+<Steps>
+  <Step title="Navigate to Banners">
+    Go to **Design → Banners** in your admin panel.
+  </Step>
+  
+  <Step title="Add New Banner">
+    Click the **Add New** button to create a banner.
+  </Step>
+  
+  <Step title="Configure Banner Details">
+    Enter the banner name and add images for each language:
+    
+    ```php
+    $banner_data = [
+        'name'         => 'Homepage Slideshow',
+        'status'       => 1,
+        'banner_image' => [
+            1 => [ // English language_id
+                [
+                    'title'      => 'Summer Sale',
+                    'link'       => 'index.php?route=product/special',
+                    'image'      => 'catalog/banner/summer-sale.jpg',
+                    'sort_order' => 1
+                ],
+                [
+                    'title'      => 'New Arrivals',
+                    'link'       => 'index.php?route=product/category&path=20',
+                    'image'      => 'catalog/banner/new-arrivals.jpg',
+                    'sort_order' => 2
+                ]
+            ],
+            2 => [ // French language_id
+                [
+                    'title'      => 'Soldes d\'été',
+                    'link'       => 'index.php?route=product/special',
+                    'image'      => 'catalog/banner/summer-sale-fr.jpg',
+                    'sort_order' => 1
+                ]
+            ]
+        ]
+    ];
+    ```
+  </Step>
+  
+  <Step title="Save Banner">
+    Click **Save** to store the banner configuration.
+  </Step>
+</Steps>
+
+## Banner Controller
+
+### Adding a Banner
+
+```php
+namespace Opencart\Admin\Controller\Design;
+
+class Banner extends \Opencart\System\Engine\Controller {
+    public function save(): void {
+        $this->load->language('design/banner');
+        $this->load->model('design/banner');
+        
+        $json = [];
+        
+        // Required fields
+        $required = [
+            'banner_id'    => 0,
+            'banner_image' => [],
+            'name'         => '',
+            'status'       => 0
+        ];
+        
+        $post_info = $this->request->post + $required;
+        
+        // Validate name
+        if (!oc_validate_length($post_info['name'], 3, 64)) {
+            $json['error']['name'] = 'Name must be 3-64 characters';
+        }
+        
+        // Validate banner images
+        if (isset($post_info['banner_image'])) {
+            foreach ($post_info['banner_image'] as $language_id => $images) {
+                foreach ($images as $key => $value) {
+                    // Validate title
+                    if (!oc_validate_length($value['title'], 2, 64)) {
+                        $json['error']['image_' . $language_id . '_' . $key . '_title'] = 
+                            'Title must be 2-64 characters';
+                    }
+                    
+                    // Validate link URL
+                    if (!empty($value['link']) && !oc_validate_url($value['link'])) {
+                        $json['error']['image_' . $language_id . '_' . $key . '_link'] = 
+                            'Invalid URL';
+                    }
+                }
+            }
+        }
+        
+        if (!$json) {
+            if (!$post_info['banner_id']) {
+                $json['banner_id'] = $this->model_design_banner->addBanner($post_info);
+            } else {
+                $this->model_design_banner->editBanner(
+                    $post_info['banner_id'], 
+                    $post_info
+                );
+            }
+            
+            $json['success'] = 'Banner saved successfully';
+        }
+    }
+}
+```
+
+## Banner Model
+
+### Core Methods
+
+```php
+namespace Opencart\Admin\Model\Design;
+
+class Banner extends \Opencart\System\Engine\Model {
+    // Add new banner
+    public function addBanner(array $data): int {
+        $this->db->query(
+            "INSERT INTO `" . DB_PREFIX . "banner` 
+            SET `name` = '" . $this->db->escape($data['name']) . "', 
+            `status` = '" . (bool)($data['status'] ?? 0) . "'"
+        );
+        
+        $banner_id = $this->db->getLastId();
+        
+        // Add banner images
+        if (isset($data['banner_image'])) {
+            foreach ($data['banner_image'] as $language_id => $images) {
+                foreach ($images as $image) {
+                    $this->addImage($banner_id, $language_id, $image);
+                }
+            }
+        }
+        
+        return $banner_id;
+    }
+    
+    // Edit existing banner
+    public function editBanner(int $banner_id, array $data): void {
+        $this->db->query(
+            "UPDATE `" . DB_PREFIX . "banner` 
+            SET `name` = '" . $this->db->escape($data['name']) . "', 
+            `status` = '" . (bool)($data['status'] ?? 0) . "' 
+            WHERE `banner_id` = '" . (int)$banner_id . "'"
+        );
+        
+        // Replace all images
+        $this->deleteImages($banner_id);
+        
+        if (isset($data['banner_image'])) {
+            foreach ($data['banner_image'] as $language_id => $images) {
+                foreach ($images as $image) {
+                    $this->addImage($banner_id, $language_id, $image);
+                }
+            }
+        }
+    }
+    
+    // Toggle banner status
+    public function editStatus(int $banner_id, bool $status): void {
+        $this->db->query(
+            "UPDATE `" . DB_PREFIX . "banner` 
+            SET `status` = '" . (bool)$status . "' 
+            WHERE `banner_id` = '" . (int)$banner_id . "'"
+        );
+    }
+    
+    // Delete banner
+    public function deleteBanner(int $banner_id): void {
+        $this->db->query(
+            "DELETE FROM `" . DB_PREFIX . "banner` 
+            WHERE `banner_id` = '" . (int)$banner_id . "'"
+        );
+        
+        $this->deleteImages($banner_id);
+    }
+    
+    // Get banner details
+    public function getBanner(int $banner_id): array {
+        $query = $this->db->query(
+            "SELECT DISTINCT * FROM `" . DB_PREFIX . "banner` 
+            WHERE `banner_id` = '" . (int)$banner_id . "'"
+        );
+        
+        return $query->row;
+    }
+    
+    // List all banners
+    public function getBanners(array $data = []): array {
+        $sql = "SELECT * FROM `" . DB_PREFIX . "banner`";
+        
+        // Sorting
+        $sort_data = ['name', 'status'];
+        
+        if (isset($data['sort']) && in_array($data['sort'], $sort_data)) {
+            $sql .= " ORDER BY " . $data['sort'];
+        } else {
+            $sql .= " ORDER BY `name`";
+        }
+        
+        if (isset($data['order']) && ($data['order'] == 'DESC')) {
+            $sql .= " DESC";
+        } else {
+            $sql .= " ASC";
+        }
+        
+        // Pagination
+        if (isset($data['start']) || isset($data['limit'])) {
+            $sql .= " LIMIT " . (int)$data['start'] . "," . (int)$data['limit'];
+        }
+        
+        $query = $this->db->query($sql);
+        return $query->rows;
+    }
+}
+```
+
+### Image Management
+
+```php
+// Add image to banner
+public function addImage(int $banner_id, int $language_id, array $data): void {
+    $this->db->query(
+        "INSERT INTO `" . DB_PREFIX . "banner_image` 
+        SET `banner_id` = '" . (int)$banner_id . "', 
+        `language_id` = '" . (int)$language_id . "', 
+        `title` = '" . $this->db->escape($data['title']) . "', 
+        `link` = '" . $this->db->escape($data['link']) . "', 
+        `image` = '" . $this->db->escape($data['image']) . "', 
+        `sort_order` = '" . (int)$data['sort_order'] . "'"
+    );
+}
+
+// Delete all images for a banner
+public function deleteImages(int $banner_id): void {
+    $this->db->query(
+        "DELETE FROM `" . DB_PREFIX . "banner_image` 
+        WHERE `banner_id` = '" . (int)$banner_id . "'"
+    );
+}
+
+// Get images for a banner and language
+public function getImages(int $banner_id, int $language_id): array {
+    $query = $this->db->query(
+        "SELECT * FROM `" . DB_PREFIX . "banner_image` 
+        WHERE `banner_id` = '" . (int)$banner_id . "' 
+        AND `language_id` = '" . (int)$language_id . "' 
+        ORDER BY `sort_order` ASC"
+    );
+    
+    return $query->rows;
+}
+```
+
+## Displaying Banners
+
+### Banner Module
+
+Banners are displayed using the Banner module in layouts:
+
+<Steps>
+  <Step title="Create Banner Module">
+    Go to **Extensions → Modules → Banner** and create a new module instance.
+  </Step>
+  
+  <Step title="Configure Module">
+    Select the banner to display and configure settings:
+    
+    ```php
+    $module_data = [
+        'name'      => 'Homepage Banner',
+        'banner_id' => 1,
+        'width'     => 1200,
+        'height'    => 400,
+        'status'    => 1
+    ];
+    ```
+  </Step>
+  
+  <Step title="Add to Layout">
+    Assign the module to a layout position (e.g., content_top on the home page).
+  </Step>
+</Steps>
+
+### Catalog Display
+
+In the catalog controller:
+
+```php
+public function getBanner(int $banner_id): array {
+    $this->load->model('design/banner');
+    
+    $banner_info = $this->model_design_banner->getBanner($banner_id);
+    
+    if ($banner_info && $banner_info['status']) {
+        $data['banner_id'] = $banner_id;
+        $data['banners'] = [];
+        
+        $results = $this->model_design_banner->getImages(
+            $banner_id,
+            $this->config->get('config_language_id')
+        );
+        
+        foreach ($results as $result) {
+            $data['banners'][] = [
+                'title' => $result['title'],
+                'link'  => $result['link'],
+                'image' => $this->model_tool_image->resize(
+                    $result['image'],
+                    $this->config->get('config_image_default_width'),
+                    $this->config->get('config_image_default_height')
+                )
+            ];
+        }
+        
+        return $data;
+    }
+    
+    return [];
+}
+```
+
+### Template Example
+
+```twig
+{# Banner template #}
+{% if banners %}
+  <div class="banner-slideshow">
+    <div id="carousel-{{ banner_id }}" class="carousel slide" data-ride="carousel">
+      <div class="carousel-inner">
+        {% for banner in banners %}
+          <div class="carousel-item{% if loop.first %} active{% endif %}">
+            {% if banner.link %}
+              <a href="{{ banner.link }}">
+                <img src="{{ banner.image }}" alt="{{ banner.title }}" class="d-block w-100">
+              </a>
+            {% else %}
+              <img src="{{ banner.image }}" alt="{{ banner.title }}" class="d-block w-100">
+            {% endif %}
+            {% if banner.title %}
+              <div class="carousel-caption">
+                <h3>{{ banner.title }}</h3>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      
+      {# Navigation controls #}
+      {% if banners|length > 1 %}
+        <a class="carousel-control-prev" href="#carousel-{{ banner_id }}" role="button" data-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="sr-only">Previous</span>
+        </a>
+        <a class="carousel-control-next" href="#carousel-{{ banner_id }}" role="button" data-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="sr-only">Next</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+```
+
+## Multi-Language Support
+
+<Tabs>
+  <Tab title="Adding Language Images">
+    ```php
+    $banner_image = [
+        1 => [ // English
+            [
+                'title' => 'Winter Sale',
+                'link'  => 'special-offers',
+                'image' => 'banner-en.jpg',
+                'sort_order' => 1
+            ]
+        ],
+        2 => [ // French
+            [
+                'title' => 'Vente d\'hiver',
+                'link'  => 'special-offers',
+                'image' => 'banner-fr.jpg',
+                'sort_order' => 1
+            ]
+        ],
+        3 => [ // German
+            [
+                'title' => 'Winterverkauf',
+                'link'  => 'special-offers',
+                'image' => 'banner-de.jpg',
+                'sort_order' => 1
+            ]
+        ]
+    ];
+    ```
+  </Tab>
+  
+  <Tab title="Loading Language Images">
+    ```php
+    // Get current language
+    $language_id = $this->config->get('config_language_id');
+    
+    // Load images for current language
+    $images = $this->model_design_banner->getImages(
+        $banner_id,
+        $language_id
+    );
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  If no images exist for the current language, the banner won't display. Always provide images for all active languages.
+</Note>
+
+## Banner Best Practices
+
+### 1. Image Optimization
+
+<Tip>
+  Optimize banner images for web to improve page load times:
+  - Use appropriate dimensions (don't oversized)
+  - Compress images (JPEG quality 80-90%)
+  - Use WebP format when possible
+  - Implement lazy loading
+</Tip>
+
+```php
+// Resize image on display
+$thumb = $this->model_tool_image->resize(
+    $image,
+    1200,  // Width
+    400    // Height
+);
+```
+
+### 2. Link Validation
+
+```php
+// Validate banner links
+if (!empty($value['link']) && !oc_validate_url($value['link'])) {
+    $json['error']['link'] = 'Invalid URL format';
+}
+
+// Ensure links are relative or full URLs
+// ✅ Good
+'index.php?route=product/category&path=20'
+'https://example.com/products'
+
+// ❌ Bad
+'category/20'
+'../products'
+```
+
+### 3. Sort Order Management
+
+```php
+// Use incremental sort orders
+[
+    ['title' => 'Banner 1', 'sort_order' => 10],
+    ['title' => 'Banner 2', 'sort_order' => 20],
+    ['title' => 'Banner 3', 'sort_order' => 30]
+]
+```
+
+### 4. Responsive Design
+
+```css
+/* Responsive banner styles */
+.banner-slideshow img {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: cover;
+}
+
+@media (max-width: 768px) {
+    .banner-slideshow img {
+        max-height: 250px;
+    }
+}
+```
+
+## Bulk Operations
+
+### Enable Multiple Banners
+
+```php
+public function enable(): void {
+    $selected = (array)$this->request->post['selected'];
+    
+    if (!$this->user->hasPermission('modify', 'design/banner')) {
+        $json['error'] = 'No permission';
+    }
+    
+    if (!$json) {
+        $this->load->model('design/banner');
+        
+        foreach ($selected as $banner_id) {
+            $this->model_design_banner->editStatus((int)$banner_id, true);
+        }
+        
+        $json['success'] = 'Banners enabled';
+    }
+}
+```
+
+### Disable Multiple Banners
+
+```php
+public function disable(): void {
+    $selected = (array)$this->request->post['selected'];
+    
+    $this->load->model('design/banner');
+    
+    foreach ($selected as $banner_id) {
+        $this->model_design_banner->editStatus((int)$banner_id, false);
+    }
+}
+```
+
+## Common Use Cases
+
+### Homepage Slideshow
+
+```php
+$slideshow = [
+    'name'   => 'Homepage Slideshow',
+    'status' => 1,
+    'banner_image' => [
+        $language_id => [
+            [
+                'title' => 'New Collection',
+                'link'  => 'index.php?route=product/category&path=59',
+                'image' => 'catalog/slideshow/slide-1.jpg',
+                'sort_order' => 1
+            ],
+            [
+                'title' => 'Sale Items',
+                'link'  => 'index.php?route=product/special',
+                'image' => 'catalog/slideshow/slide-2.jpg',
+                'sort_order' => 2
+            ]
+        ]
+    ]
+];
+```
+
+### Category Promotion Banner
+
+```php
+$promotion = [
+    'name'   => 'Electronics Banner',
+    'status' => 1,
+    'banner_image' => [
+        $language_id => [
+            [
+                'title' => 'Tech Deals',
+                'link'  => 'index.php?route=product/category&path=18',
+                'image' => 'catalog/banners/electronics-promo.jpg',
+                'sort_order' => 1
+            ]
+        ]
+    ]
+];
+```
+
+### Seasonal Campaign
+
+```php
+$seasonal = [
+    'name'   => 'Holiday Sale 2026',
+    'status' => 1,
+    'banner_image' => [
+        $language_id => [
+            [
+                'title' => 'Holiday Savings',
+                'link'  => 'index.php?route=product/special',
+                'image' => 'catalog/seasonal/holiday-2026.jpg',
+                'sort_order' => 1
+            ]
+        ]
+    ]
+];
+```
+
+## Troubleshooting
+
+### Banner Not Displaying
+
+<Steps>
+  <Step title="Check Banner Status">
+    Ensure banner is enabled in Design → Banners.
+  </Step>
+  
+  <Step title="Verify Language Images">
+    Confirm images exist for the current language.
+  </Step>
+  
+  <Step title="Check Module Configuration">
+    Verify the banner module is properly configured and assigned to a layout.
+  </Step>
+</Steps>
+
+### Images Not Loading
+
+- Check file path is correct
+- Verify image file exists in catalog/image/
+- Confirm file permissions (644 for files)
+- Validate image format (JPG, PNG, GIF, WebP)
+
+### Links Not Working
+
+- Ensure link format is correct
+- Check for URL validation errors
+- Test link in browser
+- Verify SEO URL settings
+
+## Related Documentation
+
+- [Layout Configuration](/design/layouts) - Add banners to layouts
+- [Theme Management](/design/themes) - Customize banner appearance
+- [Image Management](/store/products) - Manage banner images

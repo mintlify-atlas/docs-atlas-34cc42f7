@@ -1,0 +1,717 @@
+---
+title: Shipping Method Extensions
+description: Implement shipping calculators and delivery methods for your OpenCart store
+---
+
+Shipping extensions calculate delivery costs and provide shipping options to customers during checkout. They integrate with your store to offer various shipping methods based on weight, location, price, or other factors.
+
+## What Are Shipping Extensions?
+
+Shipping extensions are specialized controllers that:
+
+- Calculate shipping costs based on various criteria
+- Provide available shipping options during checkout
+- Support geo-zone restrictions
+- Handle special shipping rules and conditions
+- Display delivery time estimates
+
+<Note>
+  Shipping extensions are located in `upload/extension/[vendor]/admin/controller/shipping/`
+</Note>
+
+## Built-in Shipping Methods
+
+OpenCart includes five basic shipping methods:
+
+<CardGroup cols={2}>
+  <Card title="Flat Rate" icon="truck">
+    Fixed shipping cost regardless of order size or weight
+  </Card>
+  <Card title="Free Shipping" icon="gift">
+    No shipping charge, ideal for promotions
+  </Card>
+  <Card title="Per Item" icon="boxes-stacked">
+    Shipping cost calculated per item quantity
+  </Card>
+  <Card title="Pickup" icon="store">
+    In-store or local pickup option with no shipping
+  </Card>
+  <Card title="Weight-Based" icon="weight-scale">
+    Cost based on total order weight with tiered pricing
+  </Card>
+</CardGroup>
+
+## Shipping Extension Architecture
+
+### Admin Controller
+
+Location: `admin/controller/extension/[vendor]/shipping/[name].php`
+
+```php
+namespace Opencart\Admin\Controller\Extension\Opencart\Shipping;
+
+class Flat extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        // Load language file
+        $this->load->language('extension/opencart/shipping/flat');
+        
+        // Set page title
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Build breadcrumbs
+        $data['breadcrumbs'] = [];
+        
+        $data['breadcrumbs'][] = [
+            'text' => $this->language->get('text_home'),
+            'href' => $this->url->link('common/dashboard')
+        ];
+        
+        // Form URLs
+        $data['save'] = $this->url->link(
+            'extension/opencart/shipping/flat.save'
+        );
+        $data['back'] = $this->url->link(
+            'marketplace/extension',
+            '&type=shipping'
+        );
+        
+        // Load settings
+        $data['shipping_flat_cost'] = 
+            $this->config->get('shipping_flat_cost');
+        
+        // Tax class for shipping
+        $this->load->model('localisation/tax_class');
+        $data['shipping_flat_tax_class_id'] = 
+            $this->config->get('shipping_flat_tax_class_id');
+        $data['tax_classes'] = 
+            $this->model_localisation_tax_class->getTaxClasses();
+        
+        // Geo zone restrictions
+        $this->load->model('localisation/geo_zone');
+        $data['shipping_flat_geo_zone_id'] = 
+            $this->config->get('shipping_flat_geo_zone_id');
+        $data['geo_zones'] = 
+            $this->model_localisation_geo_zone->getGeoZones();
+        
+        // Status and sort order
+        $data['shipping_flat_status'] = 
+            $this->config->get('shipping_flat_status');
+        $data['shipping_flat_sort_order'] = 
+            $this->config->get('shipping_flat_sort_order');
+        
+        // Display view
+        $data['header'] = $this->load->controller('common/header');
+        $data['column_left'] = $this->load->controller('common/column_left');
+        $data['footer'] = $this->load->controller('common/footer');
+        
+        $this->response->setOutput(
+            $this->load->view('extension/opencart/shipping/flat', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/opencart/shipping/flat');
+        
+        $json = [];
+        
+        // Check permissions
+        if (!$this->user->hasPermission('modify', 'extension/opencart/shipping/flat')) {
+            $json['error'] = $this->language->get('error_permission');
+        }
+        
+        if (!$json) {
+            // Save settings
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'shipping_flat',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+Location reference: `admin/controller/extension/opencart/shipping/flat.php:1`
+
+### Catalog Controller (Shipping Quote)
+
+Unlike payment extensions, shipping extensions don't have a separate catalog controller file. Instead, they're called through the shipping model system:
+
+Location: `catalog/model/extension/[vendor]/shipping/[name].php`
+
+```php
+namespace Opencart\Catalog\Model\Extension\Opencart\Shipping;
+
+class Flat extends \Opencart\System\Engine\Model {
+    /**
+     * Get shipping quote
+     * 
+     * @param array $address Shipping address information
+     * @return array Shipping quote with method options
+     */
+    public function getQuote(array $address): array {
+        $this->load->language('extension/opencart/shipping/flat');
+        
+        $query = $this->db->query("
+            SELECT * FROM `" . DB_PREFIX . "zone_to_geo_zone` 
+            WHERE geo_zone_id = '" . (int)$this->config->get('shipping_flat_geo_zone_id') . "' 
+            AND country_id = '" . (int)$address['country_id'] . "' 
+            AND (zone_id = '" . (int)$address['zone_id'] . "' OR zone_id = '0')
+        ");
+        
+        if (!$this->config->get('shipping_flat_geo_zone_id')) {
+            $status = true;
+        } elseif ($query->num_rows) {
+            $status = true;
+        } else {
+            $status = false;
+        }
+        
+        $method_data = [];
+        
+        if ($status) {
+            $quote_data = [];
+            
+            $quote_data['flat'] = [
+                'code'         => 'flat.flat',
+                'name'         => $this->language->get('text_description'),
+                'cost'         => $this->config->get('shipping_flat_cost'),
+                'tax_class_id' => $this->config->get('shipping_flat_tax_class_id'),
+                'text'         => $this->currency->format(
+                    $this->tax->calculate(
+                        $this->config->get('shipping_flat_cost'),
+                        $this->config->get('shipping_flat_tax_class_id'),
+                        $this->config->get('config_tax')
+                    ),
+                    $this->session->data['currency']
+                )
+            ];
+            
+            $method_data = [
+                'code'       => 'flat',
+                'name'       => $this->language->get('heading_title'),
+                'quote'      => $quote_data,
+                'sort_order' => $this->config->get('shipping_flat_sort_order'),
+                'error'      => false
+            ];
+        }
+        
+        return $method_data;
+    }
+}
+```
+
+## Common Configuration Options
+
+Most shipping extensions share these settings:
+
+### Status
+```php
+shipping_{code}_status = 1  // Enable the shipping method
+```
+
+### Sort Order
+```php
+shipping_{code}_sort_order = 1  // Display order
+```
+
+### Geo Zone
+```php
+shipping_{code}_geo_zone_id = 0  // 0 = all zones
+```
+
+### Tax Class
+```php
+shipping_{code}_tax_class_id = 9  // Apply tax to shipping
+```
+
+<Accordion title="Example: Flat Rate Configuration">
+  ```php
+  // Enable flat rate shipping
+  shipping_flat_status = 1
+  
+  // Set flat cost
+  shipping_flat_cost = 5.00
+  
+  // Apply standard tax
+  shipping_flat_tax_class_id = 9
+  
+  // Available in all geo zones
+  shipping_flat_geo_zone_id = 0
+  
+  // Display first
+  shipping_flat_sort_order = 1
+  ```
+</Accordion>
+
+## Shipping Method Examples
+
+### Flat Rate Shipping
+
+Simplest shipping method with fixed cost:
+
+```php
+public function getQuote(array $address): array {
+    $quote_data['flat'] = [
+        'code'         => 'flat.flat',
+        'name'         => 'Flat Rate',
+        'cost'         => 5.00,
+        'tax_class_id' => 9,
+        'text'         => '$5.00'
+    ];
+    
+    return [
+        'code'  => 'flat',
+        'name'  => 'Flat Rate Shipping',
+        'quote' => $quote_data,
+        'sort_order' => 1,
+        'error' => false
+    ];
+}
+```
+
+### Free Shipping
+
+No cost shipping, often with conditions:
+
+```php
+public function getQuote(array $address): array {
+    $this->load->language('extension/opencart/shipping/free');
+    
+    $total = $this->cart->getSubTotal();
+    
+    // Only offer free shipping if order total meets minimum
+    if ($total >= $this->config->get('shipping_free_total')) {
+        $quote_data['free'] = [
+            'code'         => 'free.free',
+            'name'         => $this->language->get('text_description'),
+            'cost'         => 0.00,
+            'tax_class_id' => 0,
+            'text'         => $this->language->get('text_free')
+        ];
+        
+        return [
+            'code'  => 'free',
+            'name'  => $this->language->get('heading_title'),
+            'quote' => $quote_data,
+            'sort_order' => $this->config->get('shipping_free_sort_order'),
+            'error' => false
+        ];
+    }
+    
+    return [];
+}
+```
+
+### Per Item Shipping
+
+Cost multiplied by quantity:
+
+```php
+public function getQuote(array $address): array {
+    $this->load->language('extension/opencart/shipping/item');
+    
+    // Count total items in cart
+    $item_count = 0;
+    
+    foreach ($this->cart->getProducts() as $product) {
+        $item_count += $product['quantity'];
+    }
+    
+    $cost = $item_count * $this->config->get('shipping_item_cost');
+    
+    $quote_data['item'] = [
+        'code'         => 'item.item',
+        'name'         => $this->language->get('text_description'),
+        'cost'         => $cost,
+        'tax_class_id' => $this->config->get('shipping_item_tax_class_id'),
+        'text'         => $this->currency->format(
+            $this->tax->calculate(
+                $cost,
+                $this->config->get('shipping_item_tax_class_id'),
+                $this->config->get('config_tax')
+            )
+        )
+    ];
+    
+    return [
+        'code'  => 'item',
+        'name'  => $this->language->get('heading_title'),
+        'quote' => $quote_data,
+        'sort_order' => $this->config->get('shipping_item_sort_order'),
+        'error' => false
+    ];
+}
+```
+
+### Weight-Based Shipping
+
+Tiered pricing based on weight:
+
+```php
+public function getQuote(array $address): array {
+    $this->load->language('extension/opencart/shipping/weight');
+    
+    $weight = $this->cart->getWeight();
+    
+    // Get weight-based rates from settings
+    $rates = json_decode(
+        $this->config->get('shipping_weight_rates'),
+        true
+    );
+    
+    $cost = 0;
+    
+    // Find appropriate rate based on weight
+    foreach ($rates as $rate) {
+        if ($weight >= $rate['min'] && $weight <= $rate['max']) {
+            $cost = $rate['cost'];
+            break;
+        }
+    }
+    
+    if ($cost > 0) {
+        $quote_data['weight'] = [
+            'code'         => 'weight.weight',
+            'name'         => $this->language->get('text_description'),
+            'cost'         => $cost,
+            'tax_class_id' => $this->config->get('shipping_weight_tax_class_id'),
+            'text'         => $this->currency->format(
+                $this->tax->calculate(
+                    $cost,
+                    $this->config->get('shipping_weight_tax_class_id'),
+                    $this->config->get('config_tax')
+                )
+            )
+        ];
+        
+        return [
+            'code'  => 'weight',
+            'name'  => $this->language->get('heading_title'),
+            'quote' => $quote_data,
+            'sort_order' => $this->config->get('shipping_weight_sort_order'),
+            'error' => false
+        ];
+    }
+    
+    return [];
+}
+```
+
+## Multiple Shipping Options
+
+A single shipping extension can provide multiple shipping options:
+
+```php
+public function getQuote(array $address): array {
+    $quote_data = [];
+    
+    // Standard shipping
+    $quote_data['standard'] = [
+        'code'  => 'ups.standard',
+        'name'  => 'UPS Standard (5-7 days)',
+        'cost'  => 10.00,
+        'tax_class_id' => 9,
+        'text'  => '$10.00'
+    ];
+    
+    // Express shipping
+    $quote_data['express'] = [
+        'code'  => 'ups.express',
+        'name'  => 'UPS Express (2-3 days)',
+        'cost'  => 25.00,
+        'tax_class_id' => 9,
+        'text'  => '$25.00'
+    ];
+    
+    // Overnight shipping
+    $quote_data['overnight'] = [
+        'code'  => 'ups.overnight',
+        'name'  => 'UPS Overnight (1 day)',
+        'cost'  => 45.00,
+        'tax_class_id' => 9,
+        'text'  => '$45.00'
+    ];
+    
+    return [
+        'code'  => 'ups',
+        'name'  => 'UPS Shipping',
+        'quote' => $quote_data,
+        'sort_order' => 1,
+        'error' => false
+    ];
+}
+```
+
+## Geo-Zone Restrictions
+
+Limit shipping methods to specific regions:
+
+```php
+public function getQuote(array $address): array {
+    // Check if shipping is available in customer's location
+    $query = $this->db->query("
+        SELECT * FROM `" . DB_PREFIX . "zone_to_geo_zone` 
+        WHERE geo_zone_id = '" . (int)$this->config->get('shipping_custom_geo_zone_id') . "' 
+        AND country_id = '" . (int)$address['country_id'] . "' 
+        AND (zone_id = '" . (int)$address['zone_id'] . "' OR zone_id = '0')
+    ");
+    
+    // If geo zone is not set, available everywhere
+    if (!$this->config->get('shipping_custom_geo_zone_id')) {
+        $status = true;
+    } elseif ($query->num_rows) {
+        // Customer is in allowed geo zone
+        $status = true;
+    } else {
+        // Customer is not in allowed geo zone
+        $status = false;
+    }
+    
+    if (!$status) {
+        return [];
+    }
+    
+    // Continue with quote calculation...
+}
+```
+
+## Developing Custom Shipping Extensions
+
+### Admin Configuration Controller
+
+```php
+// admin/controller/extension/myvendor/shipping/custom.php
+namespace Opencart\Admin\Controller\Extension\Myvendor\Shipping;
+
+class Custom extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/myvendor/shipping/custom');
+        
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Form URLs
+        $data['save'] = $this->url->link('extension/myvendor/shipping/custom.save');
+        $data['back'] = $this->url->link('marketplace/extension', '&type=shipping');
+        
+        // Custom settings
+        $data['shipping_custom_rate'] = 
+            $this->config->get('shipping_custom_rate') ?: 10.00;
+        $data['shipping_custom_min_order'] = 
+            $this->config->get('shipping_custom_min_order') ?: 0;
+        
+        // Standard settings
+        $data['shipping_custom_tax_class_id'] = 
+            $this->config->get('shipping_custom_tax_class_id');
+        $data['shipping_custom_geo_zone_id'] = 
+            $this->config->get('shipping_custom_geo_zone_id');
+        $data['shipping_custom_status'] = 
+            $this->config->get('shipping_custom_status');
+        $data['shipping_custom_sort_order'] = 
+            $this->config->get('shipping_custom_sort_order');
+        
+        // Load tax classes and geo zones
+        $this->load->model('localisation/tax_class');
+        $this->load->model('localisation/geo_zone');
+        
+        $data['tax_classes'] = 
+            $this->model_localisation_tax_class->getTaxClasses();
+        $data['geo_zones'] = 
+            $this->model_localisation_geo_zone->getGeoZones();
+        
+        $data['header'] = $this->load->controller('common/header');
+        $data['column_left'] = $this->load->controller('common/column_left');
+        $data['footer'] = $this->load->controller('common/footer');
+        
+        $this->response->setOutput(
+            $this->load->view('extension/myvendor/shipping/custom', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/myvendor/shipping/custom');
+        
+        $json = [];
+        
+        if (!$this->user->hasPermission('modify', 'extension/myvendor/shipping/custom')) {
+            $json['error'] = $this->language->get('error_permission');
+        }
+        
+        if (!$json) {
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'shipping_custom',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+### Shipping Quote Model
+
+```php
+// catalog/model/extension/myvendor/shipping/custom.php
+namespace Opencart\Catalog\Model\Extension\Myvendor\Shipping;
+
+class Custom extends \Opencart\System\Engine\Model {
+    public function getQuote(array $address): array {
+        $this->load->language('extension/myvendor/shipping/custom');
+        
+        // Check if method is enabled
+        if (!$this->config->get('shipping_custom_status')) {
+            return [];
+        }
+        
+        // Check geo zone
+        $query = $this->db->query("
+            SELECT * FROM `" . DB_PREFIX . "zone_to_geo_zone` 
+            WHERE geo_zone_id = '" . (int)$this->config->get('shipping_custom_geo_zone_id') . "' 
+            AND country_id = '" . (int)$address['country_id'] . "' 
+            AND (zone_id = '" . (int)$address['zone_id'] . "' OR zone_id = '0')
+        ");
+        
+        if (!$this->config->get('shipping_custom_geo_zone_id')) {
+            $status = true;
+        } elseif ($query->num_rows) {
+            $status = true;
+        } else {
+            $status = false;
+        }
+        
+        $method_data = [];
+        
+        if ($status) {
+            // Check minimum order requirement
+            $sub_total = $this->cart->getSubTotal();
+            $min_order = $this->config->get('shipping_custom_min_order');
+            
+            if ($sub_total < $min_order) {
+                return [];
+            }
+            
+            // Calculate shipping cost
+            $cost = $this->config->get('shipping_custom_rate');
+            
+            $quote_data = [];
+            
+            $quote_data['custom'] = [
+                'code'         => 'custom.custom',
+                'name'         => $this->language->get('text_description'),
+                'cost'         => $cost,
+                'tax_class_id' => $this->config->get('shipping_custom_tax_class_id'),
+                'text'         => $this->currency->format(
+                    $this->tax->calculate(
+                        $cost,
+                        $this->config->get('shipping_custom_tax_class_id'),
+                        $this->config->get('config_tax')
+                    ),
+                    $this->session->data['currency']
+                )
+            ];
+            
+            $method_data = [
+                'code'       => 'custom',
+                'name'       => $this->language->get('heading_title'),
+                'quote'      => $quote_data,
+                'sort_order' => $this->config->get('shipping_custom_sort_order'),
+                'error'      => false
+            ];
+        }
+        
+        return $method_data;
+    }
+}
+```
+
+## Quote Data Structure
+
+<Note>
+  The `getQuote()` method must return an array with specific keys for OpenCart to display shipping options correctly.
+</Note>
+
+### Return Format
+
+```php
+[
+    'code'       => 'extension_code',        // Unique identifier
+    'name'       => 'Shipping Method Name',  // Display name
+    'quote'      => [                        // Array of shipping options
+        'option_code' => [
+            'code'         => 'extension.option',  // Unique option code
+            'name'         => 'Option Name',       // Option display name
+            'cost'         => 10.00,               // Cost (before tax)
+            'tax_class_id' => 9,                   // Tax class to apply
+            'text'         => '$10.00'             // Formatted price (with tax)
+        ]
+    ],
+    'sort_order' => 1,                       // Display order
+    'error'      => false                     // Error message or false
+]
+```
+
+### Error Handling
+
+```php
+// Return error if shipping unavailable
+return [
+    'code'  => 'custom',
+    'name'  => 'Custom Shipping',
+    'quote' => [],
+    'sort_order' => 1,
+    'error' => 'Shipping unavailable to your location'
+];
+
+// Or return empty array to hide method completely
+return [];
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Cache API Calls" icon="bolt">
+    Cache shipping rate API calls to improve checkout performance
+  </Card>
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Gracefully handle API failures and provide fallback options
+  </Card>
+  <Card title="Clear Naming" icon="tag">
+    Use descriptive names for shipping options (include delivery time)
+  </Card>
+  <Card title="Test Geo Zones" icon="map">
+    Thoroughly test geo zone restrictions with various addresses
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Shipping Method Not Appearing
+
+1. **Check status**: Is the shipping method enabled?
+2. **Check geo zone**: Is customer's location within allowed zones?
+3. **Check requirements**: Does order meet minimum requirements (weight, subtotal, etc.)?
+4. **Check return value**: Is `getQuote()` returning proper array structure?
+
+### Incorrect Shipping Cost
+
+1. **Check calculations**: Verify weight, quantity, or distance calculations
+2. **Check tax class**: Ensure correct tax class is applied
+3. **Check currency**: Verify currency conversion if applicable
+4. **Debug values**: Log variables to check calculation steps
+
+## Next Steps
+
+- [Payment Extensions](/extensions/payments) - Payment gateway integration
+- [Module Extensions](/extensions/modules) - Display modules
+- [Theme Extensions](/extensions/themes) - Visual customization
+- [Extensions Overview](/extensions/overview) - Extension system basics

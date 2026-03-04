@@ -1,0 +1,322 @@
+---
+title: Error Handling
+description: Understanding error codes, messages, and handling in the OpenCart API
+---
+
+## Error Response Format
+
+When an API request fails, OpenCart returns a JSON response with an `error` object containing detailed error information.
+
+### Standard Error Response
+
+```json
+{
+  "error": {
+    "warning": "General error message describing what went wrong",
+    "field_name": "Field-specific error message"
+  }
+}
+```
+
+### Example Error Response
+
+```json
+{
+  "error": {
+    "warning": "Unable to add product to cart",
+    "firstname": "First name must be between 1 and 32 characters!",
+    "email": "E-Mail address does not appear to be valid!",
+    "option_12": "Product option is required!"
+  }
+}
+```
+
+## Error Types
+
+<AccordionGroup>
+  <Accordion title="Validation Errors">
+    Errors related to input validation, including length checks, format validation, and required fields.
+    
+    ```json
+    {
+      "error": {
+        "firstname": "First name must be between 1 and 32 characters!",
+        "lastname": "Last name must be between 1 and 32 characters!",
+        "email": "E-Mail address does not appear to be valid!",
+        "telephone": "Telephone must be between 3 and 32 characters!"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Product Errors">
+    Errors related to product availability, stock, and options.
+    
+    ```json
+    {
+      "error": {
+        "warning": "Product not found",
+        "product_0_product": "Product does not exist!",
+        "product_0_option_5": "Size is required!"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Cart Errors">
+    Errors related to cart operations and stock validation.
+    
+    ```json
+    {
+      "error": {
+        "warning": "Products marked with *** are not available in the desired quantity or not in stock!",
+        "stock": "Product is out of stock"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Address Errors">
+    Errors related to address validation.
+    
+    ```json
+    {
+      "error": {
+        "payment_firstname": "First name must be between 1 and 32 characters!",
+        "payment_address_1": "Address must be between 3 and 128 characters!",
+        "payment_city": "City must be between 2 and 128 characters!",
+        "payment_postcode": "Postcode must be between 2 and 10 characters!",
+        "payment_country": "Please select a country!",
+        "payment_zone": "Please select a region / state!"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Order Errors">
+    Errors during order confirmation and processing.
+    
+    ```json
+    {
+      "error": {
+        "customer": "Customer data is required!",
+        "product": "Cart is empty!",
+        "payment_address": "Payment address is required!",
+        "shipping_address": "Shipping address is required!",
+        "shipping_method": "Shipping method is required!",
+        "payment_method": "Payment method is required!"
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Error Messages
+
+### Customer & Authentication Errors
+
+| Error Message | Cause | Solution |
+|--------------|-------|----------|
+| `Customer data required` | Customer not set in session | Call customer API to set customer data |
+| `Customer group not found` | Invalid customer group ID | Use valid customer group ID |
+| `Customer does not exist` | Invalid customer ID | Verify customer exists in database |
+
+### Product & Cart Errors
+
+| Error Message | Cause | Solution |
+|--------------|-------|----------|
+| `Product does not exist` | Invalid product ID | Verify product ID is correct |
+| `Product is out of stock` | Insufficient stock quantity | Check product quantity availability |
+| `Minimum order quantity is X` | Below minimum quantity | Increase quantity to meet minimum |
+| `Product option is required` | Missing required option | Provide all required product options |
+| `Product option is not valid` | Invalid option value | Use valid option IDs and values |
+
+### Address Errors
+
+| Error Message | Cause | Solution |
+|--------------|-------|----------|
+| `First name must be between 1 and 32 characters` | Invalid firstname length | Provide valid firstname |
+| `Address must be between 3 and 128 characters` | Invalid address length | Provide complete address |
+| `Please select a country` | Missing or invalid country | Provide valid country_id |
+| `Please select a region / state` | Missing zone for country | Provide valid zone_id |
+| `Postcode must be between 2 and 10 characters` | Invalid postcode | Provide valid postcode |
+
+### Order Errors
+
+| Error Message | Cause | Solution |
+|--------------|-------|----------|
+| `Cart is empty` | No products in cart | Add products before checkout |
+| `Payment address is required` | Missing payment address | Set payment address |
+| `Shipping address is required` | Missing shipping address | Set shipping address |
+| `Shipping method is required` | No shipping method selected | Select shipping method |
+| `Payment method is required` | No payment method selected | Select payment method |
+
+## Validation Functions
+
+OpenCart uses these validation functions:
+
+### Length Validation
+
+```php
+oc_validate_length($value, $min, $max)
+```
+
+Validates string length is between min and max characters.
+
+**Example:**
+```php
+if (!oc_validate_length($firstname, 1, 32)) {
+    $error['firstname'] = 'First name must be between 1 and 32 characters!';
+}
+```
+
+### Email Validation
+
+```php
+oc_validate_email($email)
+```
+
+Validates email address format.
+
+**Example:**
+```php
+if (!oc_validate_email($email)) {
+    $error['email'] = 'E-Mail address does not appear to be valid!';
+}
+```
+
+### Regex Validation
+
+```php
+oc_validate_regex($value, $pattern)
+```
+
+Validates value against custom regex pattern.
+
+**Example:**
+```php
+if (!oc_validate_regex($option_value, $validation_pattern)) {
+    $error['option_' . $option_id] = sprintf('Invalid format for %s', $option_name);
+}
+```
+
+## Error Handling Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Check for Errors" icon="check">
+    Always check if the response contains an `error` key before processing data.
+  </Card>
+  
+  <Card title="Display Field Errors" icon="message">
+    Show field-specific errors next to the relevant input fields for better UX.
+  </Card>
+  
+  <Card title="Log API Errors" icon="file-lines">
+    Log error responses for debugging and monitoring API issues.
+  </Card>
+  
+  <Card title="Retry Logic" icon="rotate">
+    Implement retry logic for transient errors with exponential backoff.
+  </Card>
+</CardGroup>
+
+## Example Error Handling
+
+### PHP Example
+
+```php
+function handleApiResponse($response) {
+    $data = json_decode($response, true);
+    
+    if (isset($data['error'])) {
+        // General error
+        if (isset($data['error']['warning'])) {
+            error_log('API Error: ' . $data['error']['warning']);
+        }
+        
+        // Field-specific errors
+        foreach ($data['error'] as $field => $message) {
+            if ($field !== 'warning') {
+                error_log("Field Error [{$field}]: {$message}");
+            }
+        }
+        
+        return false;
+    }
+    
+    if (isset($data['success'])) {
+        return $data;
+    }
+    
+    return false;
+}
+```
+
+### JavaScript Example
+
+```javascript
+function handleApiResponse(response) {
+  if (response.data.error) {
+    const errors = response.data.error;
+    
+    // Log general error
+    if (errors.warning) {
+      console.error('API Error:', errors.warning);
+    }
+    
+    // Display field errors
+    Object.keys(errors).forEach(field => {
+      if (field !== 'warning') {
+        const errorElement = document.querySelector(`#error-${field}`);
+        if (errorElement) {
+          errorElement.textContent = errors[field];
+          errorElement.style.display = 'block';
+        }
+      }
+    });
+    
+    return false;
+  }
+  
+  if (response.data.success) {
+    console.log('Success:', response.data.success);
+    return response.data;
+  }
+  
+  return false;
+}
+```
+
+## HTTP Status Codes
+
+<Note>
+OpenCart API typically returns HTTP 200 status code for all responses. Error detection should be based on the presence of the `error` key in the JSON response, not HTTP status codes.
+</Note>
+
+## Debugging Tips
+
+1. **Enable Error Logging** - Check OpenCart error logs for detailed error information
+2. **Validate Input Data** - Ensure all required fields are provided with correct data types
+3. **Check Session State** - Verify session contains required data before operations
+4. **Test Incrementally** - Test each API call individually before chaining operations
+5. **Review Source Code** - Check controller validation logic for specific requirements
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn about API authentication
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Explore cart operations
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Learn order management
+  </Card>
+  
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    Access product information
+  </Card>
+</CardGroup>

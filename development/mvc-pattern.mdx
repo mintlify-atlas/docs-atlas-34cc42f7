@@ -1,0 +1,554 @@
+---
+title: "MVC Pattern in OpenCart"
+description: "Learn how OpenCart implements the Model-View-Controller pattern with practical examples from the codebase"
+---
+
+## Overview
+
+OpenCart follows a custom **MVC-A (Model-View-Controller-Action)** pattern where:
+
+- **Models** handle business logic and database operations
+- **Views** render templates using the Twig engine
+- **Controllers** coordinate between models and views
+- **Actions** represent executable controller routes
+
+## Architecture Diagram
+
+```
+┌─────────────┐
+│   Browser   │
+└──────┬──────┘
+       │ HTTP Request
+       ▼
+┌─────────────────┐
+│    Router       │ Parses route parameter
+└────────┬────────┘
+         │
+         ▼
+┌──────────────────────┐
+│    Controller        │ Coordinates logic
+│  ┌──────────────┐    │
+│  │ Load Model   │────┼──► Model (Database)
+│  │ Load View    │    │
+│  │ Load Language│    │
+│  └──────────────┘    │
+└──────────┬───────────┘
+           │
+           ▼
+┌─────────────────┐
+│  View (Twig)    │ Renders HTML
+└────────┬────────┘
+         │
+         ▼
+┌─────────────┐
+│  Response   │ HTTP Response
+└─────────────┘
+```
+
+## Controllers
+
+Controllers live in `catalog/controller/` or `admin/controller/` and extend the base `Controller` class.
+
+### Basic Controller Structure
+
+From `catalog/controller/product/product.php:8`:
+
+```php
+<?php
+namespace Opencart\Catalog\Controller\Product;
+
+class Product extends \Opencart\System\Engine\Controller {
+    /**
+     * Index
+     *
+     * @return ?\Opencart\System\Engine\Action
+     */
+    public function index() {
+        // 1. Load dependencies
+        $this->load->language('product/product');
+        $this->load->model('catalog/product');
+        
+        // 2. Get input
+        if (isset($this->request->get['product_id'])) {
+            $product_id = (int)$this->request->get['product_id'];
+        } else {
+            $product_id = 0;
+        }
+        
+        // 3. Fetch data from model
+        $product_info = $this->model_catalog_product->getProduct($product_id);
+        
+        // 4. Handle errors
+        if (!$product_info) {
+            return new \Opencart\System\Engine\Action('error/not_found');
+        }
+        
+        // 5. Set document metadata
+        $this->document->setTitle($product_info['meta_title']);
+        $this->document->setDescription($product_info['meta_description']);
+        
+        // 6. Prepare view data
+        $data['heading_title'] = $product_info['name'];
+        $data['product_id'] = $product_info['product_id'];
+        $data['price'] = $this->currency->format(
+            $product_info['price'],
+            $this->session->data['currency']
+        );
+        
+        // 7. Render view
+        $this->response->setOutput($this->load->view('product/product', $data));
+    }
+}
+```
+
+### Controller Responsibilities
+
+<AccordionGroup>
+<Accordion title="Input Handling">
+Controllers validate and sanitize request data:
+
+```php
+// GET parameters
+$product_id = isset($this->request->get['product_id']) 
+    ? (int)$this->request->get['product_id'] 
+    : 0;
+
+// POST data
+if (($this->request->server['REQUEST_METHOD'] == 'POST')) {
+    $email = isset($this->request->post['email']) 
+        ? $this->request->post['email'] 
+        : '';
+}
+
+// Cookies
+$token = isset($this->request->cookie['token']) 
+    ? $this->request->cookie['token'] 
+    : '';
+```
+</Accordion>
+
+<Accordion title="Dependency Loading">
+Use the loader to access models, views, and language files:
+
+```php
+// Load model
+$this->load->model('catalog/product');
+$products = $this->model_catalog_product->getProducts();
+
+// Load language
+$this->load->language('product/product');
+$data['text_price'] = $this->language->get('text_price');
+
+// Load sub-controller
+$data['header'] = $this->load->controller('common/header');
+$data['footer'] = $this->load->controller('common/footer');
+```
+</Accordion>
+
+<Accordion title="Data Preparation">
+Transform model data for view consumption:
+
+```php
+$data['products'] = [];
+
+foreach ($products as $product) {
+    $data['products'][] = [
+        'product_id' => $product['product_id'],
+        'name'       => $product['name'],
+        'price'      => $this->currency->format(
+            $product['price'],
+            $this->session->data['currency']
+        ),
+        'href'       => $this->url->link(
+            'product/product',
+            'product_id=' . $product['product_id']
+        )
+    ];
+}
+```
+</Accordion>
+
+<Accordion title="Response Generation">
+Controllers set HTTP headers and render output:
+
+```php
+// Render HTML view
+$this->response->setOutput($this->load->view('product/product', $data));
+
+// JSON response
+$this->response->addHeader('Content-Type: application/json');
+$this->response->setOutput(json_encode($json));
+
+// Redirect
+$this->response->redirect($this->url->link('account/login'));
+```
+</Accordion>
+</AccordionGroup>
+
+### Registry Access
+
+Controllers (and models) access services through magic `__get` method (`system/engine/controller.php:39`):
+
+```php
+public function __get(string $key): object {
+    if (!$this->registry->has($key)) {
+        throw new \Exception('Error: Could not call registry key ' . $key . '!');
+    }
+    return $this->registry->get($key);
+}
+```
+
+This allows you to use `$this->db`, `$this->config`, `$this->session`, etc.
+
+## Models
+
+Models live in `catalog/model/` or `admin/model/` and handle data operations.
+
+### Basic Model Structure
+
+From `catalog/model/catalog/product.php:10`:
+
+```php
+<?php
+namespace Opencart\Catalog\Model\Catalog;
+
+/**
+ * Class Product
+ *
+ * Can be called using $this->load->model('catalog/product');
+ *
+ * @package Opencart\Catalog\Model\Catalog
+ */
+class Product extends \Opencart\System\Engine\Model {
+    /**
+     * Get Product
+     *
+     * @param int $product_id primary key of the product record
+     *
+     * @return array<string, mixed> product record that has product ID
+     */
+    public function getProduct(int $product_id): array {
+        $query = $this->db->query("
+            SELECT DISTINCT *
+            FROM `" . DB_PREFIX . "product_to_store` `p2s`
+            LEFT JOIN `" . DB_PREFIX . "product` `p` 
+                ON (`p`.`product_id` = `p2s`.`product_id`)
+            LEFT JOIN `" . DB_PREFIX . "product_description` `pd` 
+                ON (`p`.`product_id` = `pd`.`product_id`)
+            WHERE `p2s`.`store_id` = '" . (int)$this->config->get('config_store_id') . "'
+                AND `p2s`.`product_id` = '" . (int)$product_id . "'
+                AND `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "'
+                AND `p`.`status` = '1'
+                AND `p`.`date_available` <= NOW()
+        ");
+        
+        if ($query->num_rows) {
+            return $query->row;
+        } else {
+            return [];
+        }
+    }
+    
+    /**
+     * Get Products
+     *
+     * @param array<string, mixed> $filter
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getProducts(array $filter = []): array {
+        $sql = "SELECT * FROM `" . DB_PREFIX . "product` `p`";
+        
+        // Add filtering logic
+        if (!empty($filter['filter_name'])) {
+            $sql .= " WHERE `p`.`name` LIKE '%" . $this->db->escape($filter['filter_name']) . "%'";
+        }
+        
+        // Add sorting
+        $sql .= " ORDER BY `p`.`sort_order`, `p`.`product_id` ASC";
+        
+        // Add limit
+        if (isset($filter['start']) || isset($filter['limit'])) {
+            if ($filter['start'] < 0) {
+                $filter['start'] = 0;
+            }
+            
+            if ($filter['limit'] < 1) {
+                $filter['limit'] = 20;
+            }
+            
+            $sql .= " LIMIT " . (int)$filter['start'] . "," . (int)$filter['limit'];
+        }
+        
+        $query = $this->db->query($sql);
+        
+        return $query->rows;
+    }
+    
+    /**
+     * Get Total Products
+     *
+     * @param array<string, mixed> $filter
+     *
+     * @return int
+     */
+    public function getTotalProducts(array $filter = []): int {
+        $sql = "SELECT COUNT(*) AS total FROM `" . DB_PREFIX . "product`";
+        
+        $query = $this->db->query($sql);
+        
+        return (int)$query->row['total'];
+    }
+}
+```
+
+### Model Naming Conventions
+
+| Method Prefix | Purpose | Returns | Example |
+|--------------|---------|---------|---------|
+| `get*` | Retrieve single record | `array` | `getProduct(int $id): array` |
+| `get*s` | Retrieve multiple records | `array` | `getProducts(array $filter): array` |
+| `getTotal*` | Count records | `int` | `getTotalProducts(array $filter): int` |
+| `add*` | Insert record | `int` (ID) | `addProduct(array $data): int` |
+| `edit*` | Update record | `void` | `editProduct(int $id, array $data): void` |
+| `delete*` | Delete record | `void` | `deleteProduct(int $id): void` |
+
+### Model Best Practices
+
+<CodeGroup>
+```php Good - Reusable Methods
+public function getProducts(array $filter = []): array {
+    $sql = "SELECT * FROM `" . DB_PREFIX . "product`";
+    
+    $where = [];
+    
+    if (!empty($filter['filter_name'])) {
+        $where[] = "`name` LIKE '%" . $this->db->escape($filter['filter_name']) . "%'";
+    }
+    
+    if (!empty($filter['filter_category_id'])) {
+        $where[] = "`category_id` = '" . (int)$filter['filter_category_id'] . "'";
+    }
+    
+    if ($where) {
+        $sql .= " WHERE " . implode(" AND ", $where);
+    }
+    
+    return $this->db->query($sql)->rows;
+}
+```
+
+```php Bad - Hardcoded Logic
+public function getFeaturedProducts(): array {
+    // ❌ Not reusable - hardcoded logic
+    return $this->db->query("
+        SELECT * FROM product 
+        WHERE featured = 1 
+        LIMIT 10
+    ")->rows;
+}
+
+// ✅ Better - use filters
+public function getProducts(array $filter = []): array {
+    // Can handle featured, categories, limits, etc.
+}
+```
+</CodeGroup>
+
+## Views
+
+Views use the **Twig** templating engine and live in `catalog/view/template/` or `admin/view/template/`.
+
+### Loading Views
+
+From controllers:
+
+```php
+// Simple view
+$output = $this->load->view('product/product', $data);
+
+// With custom code (language-specific templates)
+$output = $this->load->view('product/product', $data, $code);
+```
+
+### Twig Template Example
+
+```twig
+{# catalog/view/template/product/product.twig #}
+{{ header }}
+
+<div class="container">
+    <h1>{{ heading_title }}</h1>
+    
+    <div class="product-info">
+        <div class="price">
+            {% if special %}
+                <span class="price-old">{{ price }}</span>
+                <span class="price-new">{{ special }}</span>
+            {% else %}
+                <span class="price">{{ price }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="description">
+            {{ description }}
+        </div>
+        
+        {% if options %}
+            <div class="product-options">
+                {% for option in options %}
+                    <div class="form-group">
+                        <label>{{ option.name }}</label>
+                        {% if option.type == 'select' %}
+                            <select name="option[{{ option.product_option_id }}]" class="form-control">
+                                {% for option_value in option.product_option_value %}
+                                    <option value="{{ option_value.product_option_value_id }}">
+                                        {{ option_value.name }}
+                                        {% if option_value.price %}
+                                            ({{ option_value.price_prefix }}{{ option_value.price }})
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <button type="button" id="button-cart" class="btn btn-primary">
+            {{ button_cart }}
+        </button>
+    </div>
+</div>
+
+{{ footer }}
+```
+
+### View Data Separation
+
+<Note>
+Views should **never** contain business logic. All data processing must happen in controllers or models.
+</Note>
+
+```php
+// ✅ Correct - prepare in controller
+$data['price'] = $this->currency->format(
+    $this->tax->calculate($product_info['price'], $product_info['tax_class_id']),
+    $this->session->data['currency']
+);
+
+// ❌ Incorrect - logic in view
+{# Don't do this in Twig #}
+{{ product.price * 1.20 }}
+```
+
+## Action Objects
+
+Actions represent executable controller routes (`system/engine/action.php:19`):
+
+```php
+namespace Opencart\System\Engine;
+
+class Action {
+    private string $route;
+    private string $controller;
+    private string $method;
+    
+    public function __construct(string $route) {
+        $this->route = preg_replace('/[^a-zA-Z0-9_|\/\.]/', '', $route);
+        
+        $pos = strrpos($route, '.');
+        
+        if ($pos !== false) {
+            $this->controller = substr($route, 0, $pos);
+            $this->method = substr($route, $pos + 1);
+        } else {
+            $this->controller = $route;
+            $this->method = 'index';
+        }
+    }
+    
+    public function execute(\Opencart\System\Engine\Registry $registry, array &$args = []) {
+        // Load and execute controller method
+    }
+}
+```
+
+### Using Actions
+
+```php
+// Return action for error handling
+if (!$product_info) {
+    return new \Opencart\System\Engine\Action('error/not_found');
+}
+
+// Load sub-controller
+$data['header'] = $this->load->controller('common/header');
+```
+
+## MVC Flow Example
+
+Complete flow for displaying a product:
+
+<Steps>
+<Step title="User Requests URL">
+Browser requests: `https://example.com/index.php?route=product/product&product_id=50`
+</Step>
+
+<Step title="Router Parses Route">
+Router extracts `route=product/product` and loads `Opencart\Catalog\Controller\Product\Product::index()`
+</Step>
+
+<Step title="Controller Processes">
+```php
+public function index() {
+    $this->load->model('catalog/product');
+    $product_id = (int)$this->request->get['product_id'];
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    $data['name'] = $product_info['name'];
+    $data['price'] = $product_info['price'];
+    
+    $this->response->setOutput($this->load->view('product/product', $data));
+}
+```
+</Step>
+
+<Step title="Model Queries Database">
+```php
+public function getProduct(int $product_id): array {
+    $query = $this->db->query("SELECT * FROM product WHERE product_id = '" . (int)$product_id . "'");
+    return $query->row;
+}
+```
+</Step>
+
+<Step title="View Renders Template">
+```twig
+<h1>{{ name }}</h1>
+<p>Price: {{ price }}</p>
+```
+</Step>
+
+<Step title="Response Sent">
+HTML is sent back to the browser.
+</Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routing System" icon="route" href="/development/routing">
+    Learn URL routing and controllers
+  </Card>
+  <Card title="Database & Models" icon="database" href="/development/database">
+    Master database operations
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Extend with events
+  </Card>
+  <Card title="Creating Modules" icon="cube" href="/development/creating-modules">
+    Build custom modules
+  </Card>
+</CardGroup>

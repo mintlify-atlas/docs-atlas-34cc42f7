@@ -1,0 +1,91 @@
+---
+title: "Session Library"
+description: "Manage user sessions, cart data, and temporary storage with the Session library"
+---
+
+## Overview
+
+The Session library manages user sessions across page requests, storing cart contents, customer data, and temporary values.
+
+## Session Class
+
+From `system/library/session.php:15`:
+
+```php
+namespace Opencart\System\Library;
+
+class Session {
+    protected object $adaptor;
+    protected string $session_id;
+    public array $data = [];
+    
+    public function __construct(string $adaptor, \Opencart\System\Engine\Registry $registry) {
+        $class = 'Opencart\System\Library\Session\\' . $adaptor;
+        
+        if (!class_exists($class)) {
+            throw new \Exception('Error: Could not load session adaptor ' . $adaptor . ' session!');
+        }
+        
+        $this->adaptor = new $class($registry);
+        
+        register_shutdown_function([&$this, 'close']);
+        register_shutdown_function([&$this, 'gc']);
+    }
+    
+    public function getId(): string {
+        return $this->session_id;
+    }
+    
+    public function start(string $session_id = ''): string {
+        if (!$session_id) {
+            $session_id = substr(bin2hex(openssl_random_pseudo_bytes(26)), 0, 26);
+        }
+        
+        $this->session_id = $session_id;
+        $this->data = $this->adaptor->read($session_id);
+        
+        return $session_id;
+    }
+    
+    public function close(): void {
+        $this->adaptor->write($this->session_id, $this->data);
+    }
+    
+    public function destroy(): void {
+        $this->data = [];
+        $this->adaptor->destroy($this->session_id);
+    }
+}
+```
+
+## Usage
+
+### Storing Data
+
+```php
+$this->session->data['user_id'] = 123;
+$this->session->data['cart'] = ['product_id' => 50, 'quantity' => 2];
+```
+
+### Reading Data
+
+```php
+$user_id = isset($this->session->data['user_id']) ? $this->session->data['user_id'] : 0;
+```
+
+### Removing Data
+
+```php
+unset($this->session->data['user_id']);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cache Library" icon="server" href="/development/libraries/cache">
+    Caching operations
+  </Card>
+  <Card title="Cart Library" icon="shopping-cart" href="/development/libraries/cart">
+    Shopping cart operations
+  </Card>
+</CardGroup>

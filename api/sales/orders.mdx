@@ -1,0 +1,607 @@
+---
+title: Orders API
+description: Complete order workflow including customer data, addresses, shipping, payment, and order confirmation
+---
+
+## Overview
+
+The Orders API orchestrates the complete checkout and order creation process. It coordinates multiple API endpoints to validate customer data, addresses, shipping/payment methods, and creates confirmed orders.
+
+**Controller Location:** `catalog/controller/api/order.php`
+
+## API Architecture
+
+The Orders API uses a call-based routing system where different operations are accessed via the `call` parameter:
+
+```
+GET /index.php?route=api/order&call={operation}
+```
+
+### Available Operations
+
+- `customer` - Set customer data
+- `cart` - Get cart contents
+- `product_add` - Add product to cart
+- `payment_address` - Set payment address
+- `shipping_address` - Set shipping address
+- `shipping_methods` - Get available shipping methods
+- `shipping_method` - Set shipping method
+- `payment_methods` - Get available payment methods
+- `payment_method` - Set payment method
+- `extension` - Process extension totals (coupons, rewards)
+- `affiliate` - Set affiliate tracking
+- `confirm` - Confirm and create order
+- `history_add` - Add order history entry
+
+## Set Customer
+
+Set customer information for the order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=customer
+```
+
+### Request Body
+
+<ParamField body="customer_id" type="integer">
+  Existing customer ID (optional)
+</ParamField>
+
+<ParamField body="customer_group_id" type="integer">
+  Customer group ID
+</ParamField>
+
+<ParamField body="firstname" type="string" required>
+  Customer first name (1-32 characters)
+</ParamField>
+
+<ParamField body="lastname" type="string" required>
+  Customer last name (1-32 characters)
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Customer email address
+</ParamField>
+
+<ParamField body="telephone" type="string" required>
+  Customer telephone (3-32 characters)
+</ParamField>
+
+<ParamField body="custom_field" type="object">
+  Custom field values
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'customer_id' => 0,
+    'customer_group_id' => 1,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234',
+    'custom_field' => []
+];
+
+$response = $this->load->controller('api/customer', $data);
+```
+
+### Response
+
+```json
+{
+  "success": "Customer data set successfully!"
+}
+```
+
+## Set Payment Address
+
+Set the payment address for the order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=payment_address
+```
+
+### Request Body
+
+<ParamField body="payment_firstname" type="string" required>
+  First name (1-32 characters)
+</ParamField>
+
+<ParamField body="payment_lastname" type="string" required>
+  Last name (1-32 characters)
+</ParamField>
+
+<ParamField body="payment_company" type="string">
+  Company name
+</ParamField>
+
+<ParamField body="payment_address_1" type="string" required>
+  Address line 1 (3-128 characters)
+</ParamField>
+
+<ParamField body="payment_address_2" type="string">
+  Address line 2
+</ParamField>
+
+<ParamField body="payment_city" type="string" required>
+  City (2-128 characters)
+</ParamField>
+
+<ParamField body="payment_postcode" type="string">
+  Postal code (2-10 characters, required if country requires it)
+</ParamField>
+
+<ParamField body="payment_country_id" type="integer" required>
+  Country ID
+</ParamField>
+
+<ParamField body="payment_zone_id" type="integer">
+  Zone/State ID (required if country has zones)
+</ParamField>
+
+<ParamField body="payment_custom_field" type="object">
+  Custom address fields
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": "Payment address set successfully!"
+}
+```
+
+## Set Shipping Address
+
+Set the shipping address for physical products.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=shipping_address
+```
+
+### Request Body
+
+Same parameters as payment address, with `shipping_` prefix:
+
+- `shipping_firstname`
+- `shipping_lastname`
+- `shipping_company`
+- `shipping_address_1`
+- `shipping_address_2`
+- `shipping_city`
+- `shipping_postcode`
+- `shipping_country_id`
+- `shipping_zone_id`
+- `shipping_custom_field`
+
+### Response
+
+```json
+{
+  "success": "Shipping address set successfully!"
+}
+```
+
+<Note>
+Shipping address is only required if the cart contains physical products that require shipping.
+</Note>
+
+## Get Shipping Methods
+
+Retrieve available shipping methods based on cart contents and shipping address.
+
+### Endpoint
+
+```
+GET /index.php?route=api/order&call=shipping_methods
+```
+
+### Response
+
+```json
+{
+  "shipping_methods": {
+    "flat": {
+      "title": "Flat Rate",
+      "quote": {
+        "flat.flat": {
+          "code": "flat.flat",
+          "name": "Flat Shipping Rate",
+          "cost": 5.00,
+          "tax_class_id": 9,
+          "text": "$5.00"
+        }
+      },
+      "sort_order": 1,
+      "error": false
+    },
+    "ups": {
+      "title": "UPS",
+      "quote": {
+        "ups.ground": {
+          "code": "ups.ground",
+          "name": "UPS Ground",
+          "cost": 8.50,
+          "tax_class_id": 9,
+          "text": "$8.50"
+        },
+        "ups.express": {
+          "code": "ups.express",
+          "name": "UPS Express",
+          "cost": 15.00,
+          "tax_class_id": 9,
+          "text": "$15.00"
+        }
+      },
+      "sort_order": 2,
+      "error": false
+    }
+  }
+}
+```
+
+## Set Shipping Method
+
+Select a shipping method for the order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=shipping_method
+```
+
+### Request Body
+
+<ParamField body="shipping_method.name" type="string" required>
+  Shipping method name
+</ParamField>
+
+<ParamField body="shipping_method.code" type="string" required>
+  Shipping method code
+</ParamField>
+
+<ParamField body="shipping_method.cost" type="float" required>
+  Shipping cost
+</ParamField>
+
+<ParamField body="shipping_method.tax_class_id" type="integer" required>
+  Tax class ID
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'shipping_method' => [
+        'name' => 'Flat Shipping Rate',
+        'code' => 'flat.flat',
+        'cost' => 5.00,
+        'tax_class_id' => 9
+    ]
+];
+```
+
+### Response
+
+```json
+{
+  "success": "Shipping method set successfully!",
+  "products": [...],
+  "totals": [...],
+  "shipping_required": true
+}
+```
+
+## Get Payment Methods
+
+Retrieve available payment methods.
+
+### Endpoint
+
+```
+GET /index.php?route=api/order&call=payment_methods
+```
+
+### Response
+
+```json
+{
+  "payment_methods": {
+    "cod": {
+      "code": "cod",
+      "name": "Cash On Delivery",
+      "sort_order": 1
+    },
+    "bank_transfer": {
+      "code": "bank_transfer",
+      "name": "Bank Transfer",
+      "sort_order": 2
+    }
+  }
+}
+```
+
+## Set Payment Method
+
+Select a payment method for the order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=payment_method
+```
+
+### Request Body
+
+<ParamField body="payment_method.name" type="string" required>
+  Payment method name
+</ParamField>
+
+<ParamField body="payment_method.code" type="string" required>
+  Payment method code
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'payment_method' => [
+        'name' => 'Cash On Delivery',
+        'code' => 'cod'
+    ]
+];
+```
+
+### Response
+
+```json
+{
+  "success": "Payment method set successfully!",
+  "products": [...],
+  "totals": [...],
+  "shipping_required": true
+}
+```
+
+## Confirm Order
+
+Finalize and create the order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=confirm
+```
+
+### Request Body
+
+<ParamField body="order_id" type="integer">
+  Existing order ID to update (optional, 0 for new order)
+</ParamField>
+
+<ParamField body="order_status_id" type="integer">
+  Initial order status ID (defaults to config setting)
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Order comment/notes
+</ParamField>
+
+<ParamField body="affiliate_id" type="integer">
+  Affiliate ID for tracking
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'order_id' => 0,
+    'order_status_id' => 1,
+    'comment' => 'Please deliver between 9 AM - 5 PM',
+    'affiliate_id' => 0
+];
+```
+
+### Success Response
+
+```json
+{
+  "success": "Order created successfully!",
+  "order_id": 1234,
+  "points": 300,
+  "commission": "$15.00",
+  "products": [...],
+  "totals": [...],
+  "shipping_required": true
+}
+```
+
+### Validation Errors
+
+The confirm endpoint validates all required data:
+
+```json
+{
+  "error": {
+    "customer": "Customer data is required!",
+    "product": "Cart is empty!",
+    "payment_address": "Payment address is required!",
+    "shipping_address": "Shipping address is required!",
+    "shipping_method": "Shipping method is required!",
+    "payment_method": "Payment method is required!"
+  },
+  "products": [...],
+  "totals": [...],
+  "shipping_required": true
+}
+```
+
+## Add Order History
+
+Add a history entry to an existing order.
+
+### Endpoint
+
+```
+POST /index.php?route=api/order&call=history_add
+```
+
+### Request Body
+
+<ParamField body="order_id" type="integer" required>
+  Order ID
+</ParamField>
+
+<ParamField body="order_status_id" type="integer" required>
+  New order status ID
+</ParamField>
+
+<ParamField body="comment" type="string">
+  History comment
+</ParamField>
+
+<ParamField body="notify" type="boolean">
+  Send notification to customer
+</ParamField>
+
+<ParamField body="override" type="boolean">
+  Override status restrictions
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'order_id' => 1234,
+    'order_status_id' => 3,  // Shipped
+    'comment' => 'Order shipped via UPS tracking #1Z999AA10123456784',
+    'notify' => true,
+    'override' => false
+];
+```
+
+### Response
+
+```json
+{
+  "success": "Order history added successfully!"
+}
+```
+
+## Complete Order Workflow
+
+Here's a complete example of creating an order:
+
+```php
+// Step 1: Set customer data
+$customer_response = $this->load->controller('api/customer', [
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+]);
+
+// Step 2: Add products to cart
+$cart_response = $this->load->controller('api/cart/addProduct', [
+    'product_id' => 42,
+    'quantity' => 1
+]);
+
+// Step 3: Set payment address
+$payment_address_response = $this->load->controller('api/payment_address', [
+    'payment_firstname' => 'John',
+    'payment_lastname' => 'Doe',
+    'payment_address_1' => '123 Main St',
+    'payment_city' => 'New York',
+    'payment_postcode' => '10001',
+    'payment_country_id' => 223,
+    'payment_zone_id' => 3655
+]);
+
+// Step 4: Set shipping address
+$shipping_address_response = $this->load->controller('api/shipping_address', [
+    'shipping_firstname' => 'John',
+    'shipping_lastname' => 'Doe',
+    'shipping_address_1' => '123 Main St',
+    'shipping_city' => 'New York',
+    'shipping_postcode' => '10001',
+    'shipping_country_id' => 223,
+    'shipping_zone_id' => 3655
+]);
+
+// Step 5: Get and set shipping method
+$shipping_methods = $this->load->controller('api/shipping_method/getShippingMethods');
+$first_method = reset($shipping_methods['shipping_methods']);
+$first_quote = reset($first_method['quote']);
+
+$shipping_method_response = $this->load->controller('api/shipping_method', [
+    'shipping_method' => $first_quote
+]);
+
+// Step 6: Get and set payment method  
+$payment_methods = $this->load->controller('api/payment_method/getPaymentMethods');
+$first_payment = reset($payment_methods['payment_methods']);
+
+$payment_method_response = $this->load->controller('api/payment_method', [
+    'payment_method' => $first_payment
+]);
+
+// Step 7: Confirm order
+$order_response = $this->load->controller('api/order', [
+    'call' => 'confirm',
+    'order_id' => 0,
+    'order_status_id' => 1,
+    'comment' => 'API Order'
+]);
+
+if (isset($order_response['success'])) {
+    echo "Order created: " . $order_response['order_id'];
+}
+```
+
+<Warning>
+All steps must be completed in order. Each step validates dependencies from previous steps.
+</Warning>
+
+## Order Data Structure
+
+The confirmed order contains comprehensive data:
+
+- Store information
+- Customer details
+- Payment address
+- Shipping address  
+- Selected methods
+- Product details with options
+- Calculated totals
+- Tax information
+- Affiliate tracking
+- IP and user agent data
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Add products before checkout
+  </Card>
+  
+  <Card title="Customers API" icon="user" href="/api/sales/customers">
+    Set customer information
+  </Card>
+  
+  <Card title="Checkout API" icon="credit-card" href="/api/sales/checkout">
+    Learn checkout workflow
+  </Card>
+  
+  <Card title="Addresses API" icon="location-dot" href="/api/account/addresses">
+    Manage customer addresses
+  </Card>
+</CardGroup>

@@ -1,0 +1,443 @@
+---
+title: Customers API
+description: Manage customer data for API orders and sessions
+---
+
+## Overview
+
+The Customers API manages customer information for API sessions and orders. It validates customer data including names, email, telephone, and custom fields before storing in the session.
+
+**Controller Location:** `catalog/controller/api/customer.php`
+
+## Set Customer Data
+
+Set customer information for the current API session.
+
+### Endpoint
+
+```
+POST /index.php?route=api/customer
+```
+
+### Request Body
+
+<ParamField body="customer_id" type="integer">
+  Existing customer ID (0 for guest checkout)
+</ParamField>
+
+<ParamField body="customer_group_id" type="integer">
+  Customer group ID (defaults to store default)
+</ParamField>
+
+<ParamField body="firstname" type="string" required>
+  First name (1-32 characters)
+</ParamField>
+
+<ParamField body="lastname" type="string" required>
+  Last name (1-32 characters)
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Valid email address
+</ParamField>
+
+<ParamField body="telephone" type="string" required>
+  Telephone number (3-32 characters)
+</ParamField>
+
+<ParamField body="custom_field" type="object">
+  Custom field values (key: custom_field_id, value: field value)
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'customer_id' => 0,
+    'customer_group_id' => 1,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john.doe@example.com',
+    'telephone' => '555-123-4567',
+    'custom_field' => [
+        1 => 'Value for custom field 1',
+        2 => 'Value for custom field 2'
+    ]
+];
+
+$response = $this->load->controller('api/customer', $data);
+```
+
+```bash
+curl -X POST 'https://your-store.com/index.php?route=api/customer' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -b 'OCSESSID=abc123' \
+  -d 'firstname=John&lastname=Doe&email=john@example.com&telephone=555-1234'
+```
+
+### Success Response
+
+```json
+{
+  "success": "Customer data set successfully!"
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "warning": "Customer does not exist!",
+    "firstname": "First name must be between 1 and 32 characters!",
+    "lastname": "Last name must be between 1 and 32 characters!",
+    "email": "E-Mail address does not appear to be valid!",
+    "telephone": "Telephone must be between 3 and 32 characters!",
+    "customer_group": "Customer group is invalid!",
+    "custom_field_1": "Custom field 1 is required!"
+  }
+}
+```
+
+## Session Storage
+
+Customer data is stored in the session and used throughout the checkout process:
+
+```php
+// Customer data stored in session
+$this->session->data['customer'] = [
+    'customer_id'       => 0,
+    'customer_group_id' => 1,
+    'firstname'         => 'John',
+    'lastname'          => 'Doe',
+    'email'             => 'john@example.com',
+    'telephone'         => '555-1234',
+    'custom_field'      => []
+];
+```
+
+This data is automatically used when confirming orders.
+
+## Validation Rules
+
+The API performs comprehensive validation:
+
+### Customer ID Validation
+
+```php
+// Source: customer.php:34-42
+if ($post_info['customer_id']) {
+    $this->load->model('account/customer');
+    $customer_info = $this->model_account_customer->getCustomer($post_info['customer_id']);
+    
+    if (!$customer_info) {
+        $output['error']['warning'] = 'Customer does not exist';
+    }
+}
+```
+
+### Name Validation
+
+```php
+// Firstname: 1-32 characters
+if (!oc_validate_length($post_info['firstname'], 1, 32)) {
+    $output['error']['firstname'] = 'First name must be between 1 and 32 characters!';
+}
+
+// Lastname: 1-32 characters  
+if (!oc_validate_length($post_info['lastname'], 1, 32)) {
+    $output['error']['lastname'] = 'Last name must be between 1 and 32 characters!';
+}
+```
+
+### Email Validation
+
+```php
+if (!oc_validate_email($post_info['email'])) {
+    $output['error']['email'] = 'E-Mail address does not appear to be valid!';
+}
+```
+
+### Telephone Validation
+
+```php
+// Telephone: 3-32 characters (if required by config)
+if ($this->config->get('config_telephone_required') && 
+    !oc_validate_length($post_info['telephone'], 3, 32)) {
+    $output['error']['telephone'] = 'Telephone must be between 3 and 32 characters!';
+}
+```
+
+### Customer Group Validation
+
+```php
+// Source: customer.php:44-56
+if ($post_info['customer_group_id']) {
+    $customer_group_id = (int)$post_info['customer_group_id'];
+} else {
+    $customer_group_id = (int)$this->config->get('config_customer_group_id');
+}
+
+$customer_group_info = $this->model_account_customer_group->getCustomerGroup($customer_group_id);
+
+if (!$customer_group_info) {
+    $output['error']['customer_group'] = 'Customer group is invalid';
+}
+```
+
+### Custom Fields Validation
+
+```php
+// Source: customer.php:76-88
+$custom_fields = $this->model_account_custom_field->getCustomFields($customer_group_id);
+
+foreach ($custom_fields as $custom_field) {
+    if ($custom_field['location'] == 'account') {
+        // Required field validation
+        if ($custom_field['required'] && 
+            empty($post_info['custom_field'][$custom_field['custom_field_id']])) {
+            $output['error']['custom_field_' . $custom_field['custom_field_id']] = 
+                sprintf('Required: %s', $custom_field['name']);
+        }
+        
+        // Regex validation for text fields
+        if (($custom_field['type'] == 'text') && 
+            !empty($custom_field['validation']) && 
+            !oc_validate_regex($post_info['custom_field'][$custom_field['custom_field_id']], 
+                              $custom_field['validation'])) {
+            $output['error']['custom_field_' . $custom_field['custom_field_id']] = 
+                sprintf('Invalid format: %s', $custom_field['name']);
+        }
+    }
+}
+```
+
+## Customer Types
+
+### Guest Checkout
+
+Create an order without a customer account:
+
+```php
+$data = [
+    'customer_id' => 0,  // 0 indicates guest
+    'customer_group_id' => 1,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+];
+```
+
+### Existing Customer
+
+Use data from an existing customer account:
+
+```php
+$data = [
+    'customer_id' => 123,  // Existing customer ID
+    'customer_group_id' => 1,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+];
+```
+
+## Custom Fields
+
+Custom fields allow additional customer information:
+
+### Example with Custom Fields
+
+```php
+$data = [
+    'customer_id' => 0,
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234',
+    'custom_field' => [
+        1 => 'Company ABC',      // Custom field 1: Company
+        2 => 'TAX123456',        // Custom field 2: Tax ID
+        3 => 'Preferred customer' // Custom field 3: Customer note
+    ]
+];
+```
+
+### Custom Field Types
+
+Supported custom field types:
+
+- **Text** - Single line text input
+- **Textarea** - Multi-line text
+- **Select** - Dropdown selection
+- **Radio** - Radio button selection
+- **Checkbox** - Multiple checkbox selections
+- **Date** - Date picker
+- **Time** - Time picker
+- **Datetime** - Date and time picker
+
+## Customer Groups
+
+Customer groups affect:
+
+- Product pricing
+- Available payment methods
+- Available shipping methods
+- Tax calculations
+- Custom fields requirements
+
+### Default Customer Group
+
+If not specified, uses store default:
+
+```php
+$customer_group_id = $this->config->get('config_customer_group_id');
+```
+
+## Customer Login
+
+When customer data is set, the API performs an automatic login:
+
+```php
+// Source: customer.php:92
+$this->customer->login($post_info['email'], '', true);
+```
+
+This maintains customer session for subsequent API calls.
+
+## Integration Examples
+
+### Set Customer and Create Order
+
+```php
+// Step 1: Set customer
+$customer_response = $this->load->controller('api/customer', [
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'email' => 'john@example.com',
+    'telephone' => '555-1234'
+]);
+
+if (isset($customer_response['success'])) {
+    // Step 2: Add products
+    $this->load->controller('api/cart/addProduct', [
+        'product_id' => 42,
+        'quantity' => 1
+    ]);
+    
+    // Step 3: Continue with addresses, methods, and confirmation
+    // ...
+}
+```
+
+### Retrieve Customer from Database
+
+```php
+// Load existing customer
+$this->load->model('account/customer');
+$customer_info = $this->model_account_customer->getCustomer(123);
+
+if ($customer_info) {
+    // Use customer data in API
+    $response = $this->load->controller('api/customer', [
+        'customer_id' => $customer_info['customer_id'],
+        'customer_group_id' => $customer_info['customer_group_id'],
+        'firstname' => $customer_info['firstname'],
+        'lastname' => $customer_info['lastname'],
+        'email' => $customer_info['email'],
+        'telephone' => $customer_info['telephone']
+    ]);
+}
+```
+
+## Required Configuration
+
+The telephone field requirement is configurable:
+
+```php
+// Check if telephone is required
+if ($this->config->get('config_telephone_required')) {
+    // Telephone validation is enforced
+}
+```
+
+Configure in **System > Settings > Option > Telephone Required**.
+
+<Note>
+Customer data must be set before proceeding with cart operations and checkout. This is validated in subsequent API calls.
+</Note>
+
+## Error Handling
+
+| Error Field | Validation | Solution |
+|------------|------------|----------|
+| `warning` | Customer ID invalid | Use valid customer_id or 0 for guest |
+| `firstname` | Length 1-32 characters | Provide valid first name |
+| `lastname` | Length 1-32 characters | Provide valid last name |
+| `email` | Valid email format | Use properly formatted email |
+| `telephone` | Length 3-32 characters | Provide valid telephone number |
+| `customer_group` | Invalid group ID | Use valid customer group |
+| `custom_field_{id}` | Required or invalid format | Provide required custom fields |
+
+## Complete Example
+
+```php
+function createApiOrder($customer_data, $products) {
+    // Validate and set customer
+    $customer_response = $this->load->controller('api/customer', $customer_data);
+    
+    if (isset($customer_response['error'])) {
+        return ['error' => $customer_response['error']];
+    }
+    
+    // Add products to cart
+    foreach ($products as $product) {
+        $cart_response = $this->load->controller('api/cart/addProduct', $product);
+        
+        if (isset($cart_response['error'])) {
+            return ['error' => $cart_response['error']];
+        }
+    }
+    
+    // Continue with checkout process
+    // ...
+    
+    return ['success' => 'Order created'];
+}
+
+// Usage
+$result = createApiOrder(
+    [
+        'firstname' => 'John',
+        'lastname' => 'Doe',
+        'email' => 'john@example.com',
+        'telephone' => '555-1234'
+    ],
+    [
+        ['product_id' => 42, 'quantity' => 1],
+        ['product_id' => 43, 'quantity' => 2]
+    ]
+);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Add products to cart
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Complete order process
+  </Card>
+  
+  <Card title="Addresses API" icon="location-dot" href="/api/account/addresses">
+    Manage customer addresses
+  </Card>
+  
+  <Card title="Checkout API" icon="credit-card" href="/api/sales/checkout">
+    Complete checkout workflow
+  </Card>
+</CardGroup>

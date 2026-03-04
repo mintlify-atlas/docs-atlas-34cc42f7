@@ -1,0 +1,579 @@
+---
+title: Customer Management
+description: Manage customer accounts, addresses, transactions, and reward points in OpenCart
+---
+
+The Customer Management system provides comprehensive tools for managing customer accounts, tracking purchase history, managing reward points, and handling customer interactions.
+
+## Customer Overview
+
+Each customer account in OpenCart includes:
+
+- **Personal Information** - Name, email, telephone
+- **Customer Group** - Membership tier and pricing group
+- **Multiple Addresses** - Billing and shipping addresses
+- **Order History** - Complete purchase history
+- **Transactions** - Credit balance and transactions
+- **Reward Points** - Loyalty program points
+- **Login History** - Access tracking and security
+- **Custom Fields** - Additional customer data
+
+## Customer Filters
+
+Find customers using comprehensive search filters:
+
+### Available Filters
+
+```php
+$filter_data = [
+    'filter_name'              => 'John Smith',
+    'filter_email'             => 'john@example.com',
+    'filter_customer_group_id' => 1,
+    'filter_status'            => 1,
+    'filter_ip'                => '192.168.1.1',
+    'filter_date_from'         => '2026-01-01',
+    'filter_date_to'           => '2026-03-31',
+    'sort'                     => 'name',
+    'order'                    => 'ASC',
+    'start'                    => 0,
+    'limit'                    => 20
+];
+```
+
+<Note>
+Use the IP filter to identify customers from the same location or detect potential fraud. The system tracks all IP addresses used for customer logins and orders.
+</Note>
+
+## Customer Structure
+
+### Basic Customer Information
+
+```php
+$customer_data = [
+    'customer_id'       => 0,     // Auto-generated
+    'store_id'          => 0,     // Store where registered
+    'language_id'       => 1,     // Preferred language
+    'customer_group_id' => 1,     // Default customer group
+    'firstname'         => 'John',
+    'lastname'          => 'Smith',
+    'email'             => 'john@example.com',
+    'telephone'         => '+1-555-0123',
+    'custom_field'      => [],    // Additional fields
+    'newsletter'        => 1,     // Newsletter subscription
+    'password'          => '',    // Encrypted password
+    'status'            => 1,     // 1 = active, 0 = disabled
+    'safe'              => 0,     // Safe from automatic deletion
+    'commenter'         => 1      // Can post reviews/comments
+];
+```
+
+<Warning>
+**Required Fields:**
+- Firstname (1-32 characters)
+- Lastname (1-32 characters)
+- Email (valid email format)
+- Telephone (3-32 characters, if telephone is required in settings)
+- Customer Group ID
+</Warning>
+
+## Customer Groups
+
+Assign customers to groups for pricing and permissions:
+
+```php
+$customer_groups = [
+    1 => 'Default',
+    2 => 'Wholesale',
+    3 => 'VIP',
+    4 => 'Reseller'
+];
+```
+
+Customer groups control:
+- Product pricing (special prices per group)
+- Tax class assignments
+- Payment method availability
+- Shipping method availability
+- Discount eligibility
+
+<Accordion title="Customer Group Configuration">
+```php
+$customer_group_config = [
+    'customer_group_id' => 2,
+    'approval'          => 1,  // Requires admin approval
+    'sort_order'        => 1,
+    'description'       => [
+        1 => [
+            'name'        => 'Wholesale',
+            'description' => 'Wholesale customers get special pricing'
+        ]
+    ]
+];
+```
+</Accordion>
+
+## Customer Addresses
+
+Manage multiple addresses per customer:
+
+```php
+$customer_addresses = [
+    [
+        'address_id'    => 1,
+        'firstname'     => 'John',
+        'lastname'      => 'Smith',
+        'company'       => 'Acme Corp',
+        'address_1'     => '123 Main Street',
+        'address_2'     => 'Suite 100',
+        'city'          => 'New York',
+        'postcode'      => '10001',
+        'country_id'    => 223,
+        'zone_id'       => 48,
+        'custom_field'  => [],
+        'default'       => 1  // Default address
+    ]
+];
+```
+
+<Note>
+Each customer can have unlimited addresses. One address must be marked as the default, which is used automatically at checkout.
+</Note>
+
+## Password Management
+
+### Password Requirements
+
+Password validation based on store settings:
+
+```php
+$password_requirements = [
+    'min_length'  => 8,      // Minimum password length
+    'uppercase'   => true,   // Require uppercase letter
+    'lowercase'   => true,   // Require lowercase letter
+    'number'      => true,   // Require number
+    'symbol'      => false   // Require special character
+];
+```
+
+<Warning>
+Passwords are hashed using strong encryption. Never store or display plain-text passwords. When changing a customer's password, always require confirmation.
+</Warning>
+
+## Custom Fields
+
+Add custom data fields to customer accounts:
+
+```php
+$custom_fields = [
+    [
+        'custom_field_id' => 1,
+        'name'            => 'Company Tax ID',
+        'type'            => 'text',
+        'value'           => '',
+        'location'        => 'account',
+        'required'        => 1,
+        'status'          => 1,
+        'sort_order'      => 1,
+        'validation'      => '^[0-9]{9}$'  // Regex validation
+    ]
+];
+```
+
+Custom field types:
+- **text** - Single-line text input
+- **textarea** - Multi-line text input
+- **select** - Dropdown selection
+- **radio** - Radio button selection
+- **checkbox** - Checkbox selection
+- **date** - Date picker
+- **time** - Time picker
+- **datetime** - Date and time picker
+
+## Customer History
+
+Track notes and interactions with customers:
+
+```php
+$customer_histories = [
+    [
+        'customer_history_id' => 1,
+        'comment'             => 'Customer requested wholesale pricing',
+        'date_added'          => '2026-03-04 10:30:00'
+    ],
+    [
+        'customer_history_id' => 2,
+        'comment'             => 'Upgraded to VIP customer group',
+        'date_added'          => '2026-03-05 14:20:00'
+    ]
+];
+```
+
+<Accordion title="Adding Customer History">
+```php
+// Add note to customer account
+$this->model_customer_customer->addHistory(
+    $customer_id,
+    'Customer called regarding shipping delay'
+);
+```
+</Accordion>
+
+## Transaction Management
+
+Manage customer credit balance:
+
+```php
+$transactions = [
+    [
+        'customer_transaction_id' => 1,
+        'order_id'                => 12345,
+        'description'             => 'Order #12345',
+        'amount'                  => -25.00,  // Debit
+        'date_added'              => '2026-03-04 10:30:00'
+    ],
+    [
+        'customer_transaction_id' => 2,
+        'order_id'                => 0,
+        'description'             => 'Store credit added',
+        'amount'                  => 50.00,   // Credit
+        'date_added'              => '2026-03-05 11:00:00'
+    ]
+];
+
+// Current balance
+$balance = 25.00;
+```
+
+### Adding Transactions
+
+```php
+// Add credit to customer account
+$this->model_customer_customer->addTransaction(
+    $customer_id,
+    'Refund for order #12345',
+    50.00  // Positive = credit, Negative = debit
+);
+```
+
+<Note>
+Transactions can be used for store credit, refunds, or custom payment adjustments. The balance is calculated from all transaction history.
+</Note>
+
+## Reward Points
+
+Manage loyalty program points:
+
+```php
+$reward_points = [
+    [
+        'customer_reward_id' => 1,
+        'order_id'           => 12345,
+        'description'        => 'Purchase - Order #12345',
+        'points'             => 100,  // Points earned
+        'date_added'         => '2026-03-04 10:30:00'
+    ],
+    [
+        'customer_reward_id' => 2,
+        'order_id'           => 12346,
+        'description'        => 'Redeemed - Order #12346',
+        'points'             => -50,  // Points spent
+        'date_added'         => '2026-03-10 15:00:00'
+    ]
+];
+
+// Current point balance
+$reward_balance = 50;
+```
+
+### Managing Reward Points
+
+```php
+// Add reward points
+$this->model_customer_customer->addReward(
+    $customer_id,
+    'Bonus points for review',
+    25  // Positive = add points, Negative = deduct points
+);
+```
+
+<Accordion title="Reward Point Configuration">
+Reward points are configured per product:
+```php
+$product_reward = [
+    1 => ['points' => 100], // Default customer group
+    2 => ['points' => 150]  // Wholesale customer group
+];
+```
+
+Customers earn different point amounts based on their customer group.
+</Accordion>
+
+## IP Address Tracking
+
+Monitor customer activity and detect fraud:
+
+```php
+$customer_ips = [
+    [
+        'customer_ip_id' => 1,
+        'customer_id'    => 100,
+        'store_id'       => 0,
+        'ip'             => '192.168.1.100',
+        'date_added'     => '2026-03-04 10:30:00'
+    ]
+];
+
+// Count customers using same IP
+$total_accounts = $this->model_customer_customer->getTotalCustomersByIp('192.168.1.100');
+```
+
+<Warning>
+Multiple accounts from the same IP address may indicate:
+- Shared household/office network
+- Potential fraud or abuse
+- VPN or proxy usage
+
+Investigate suspicious patterns before taking action.
+</Warning>
+
+## Login Security
+
+### Login Attempts
+
+Track and limit failed login attempts:
+
+```php
+$login_attempts = [
+    'email'       => 'john@example.com',
+    'ip'          => '192.168.1.100',
+    'total'       => 5,
+    'date_added'  => '2026-03-04 10:30:00'
+];
+
+// Check if account is locked
+$max_attempts = 5;  // Configurable in settings
+if ($login_attempts['total'] >= $max_attempts) {
+    // Account locked - display unlock option
+}
+```
+
+### Unlocking Accounts
+
+```php
+// Unlock customer account
+$this->model_customer_customer->deleteLoginAttempts('john@example.com');
+```
+
+<Note>
+Login attempt tracking helps prevent brute force attacks. Administrators can unlock accounts from the customer management page.
+</Note>
+
+## Authorization Tokens
+
+Manage customer authentication tokens:
+
+```php
+$authorizations = [
+    [
+        'customer_authorize_id' => 1,
+        'token'                 => 'abc123...',
+        'ip'                    => '192.168.1.100',
+        'user_agent'            => 'Mozilla/5.0...',
+        'status'                => 1,
+        'date_added'            => '2026-03-04 10:30:00',
+        'date_expire'           => '2026-03-11 10:30:00'
+    ]
+];
+```
+
+Tokens are used for:
+- Remember me functionality
+- Email verification
+- Password reset links
+- Single sign-on
+
+## Customer Login
+
+### Admin-Initiated Login
+
+Login as customer for support purposes:
+
+```php
+// Generate login token
+$token = oc_token(32);
+$this->model_customer_customer->addToken($customer_id, 'login', $token);
+
+// Redirect to storefront with token
+$login_url = HTTP_CATALOG . 'index.php?route=account/login.token'
+    . '&email=' . urlencode($customer_email)
+    . '&code=' . $token;
+```
+
+<Warning>
+Admin-initiated logins create audit trails. Use this feature only when necessary for customer support and with customer permission.
+</Warning>
+
+## Newsletter Management
+
+Manage newsletter subscriptions:
+
+```php
+$customer['newsletter'] = 1;  // 1 = subscribed, 0 = unsubscribed
+```
+
+<Note>
+Newsletter subscription status is stored per customer. Use this for email marketing campaigns and updates.
+</Note>
+
+## Customer Status Flags
+
+### Status Field
+
+```php
+$customer['status'] = 1;  // 1 = enabled, 0 = disabled
+```
+
+Disabled customers cannot:
+- Login to their account
+- Place new orders
+- Access customer-only content
+
+### Safe Flag
+
+```php
+$customer['safe'] = 1;  // 1 = protected, 0 = not protected
+```
+
+The safe flag protects customers from:
+- Automatic deletion scripts
+- Bulk cleanup operations
+- Data purging
+
+### Commenter Flag
+
+```php
+$customer['commenter'] = 1;  // 1 = can comment, 0 = cannot comment
+```
+
+Controls whether customer can:
+- Post product reviews
+- Comment on blog posts
+- Participate in discussions
+
+## Bulk Operations
+
+<CardGroup cols={2}>
+  <Card title="Enable Customers" icon="user-check">
+    Activate multiple customer accounts
+  </Card>
+  
+  <Card title="Disable Customers" icon="user-xmark">
+    Deactivate accounts without deletion
+  </Card>
+  
+  <Card title="Delete Customers" icon="trash">
+    Remove customer accounts and data
+  </Card>
+  
+  <Card title="Export Customers" icon="download">
+    Export customer data for analysis
+  </Card>
+</CardGroup>
+
+<Warning>
+Deleting customers removes:
+- Customer account data
+- Address information
+- Order history references
+- Transaction records
+- Reward points
+
+Consider disabling accounts instead of deleting them.
+</Warning>
+
+## Best Practices
+
+1. **Verify Email Addresses** - Ensure customers use valid email addresses
+2. **Monitor Login Attempts** - Watch for suspicious login activity
+3. **Use Customer Groups** - Organize customers by pricing tier
+4. **Add Notes Regularly** - Document customer interactions
+5. **Manage Reward Points** - Keep loyalty program balanced
+6. **Check IP Addresses** - Identify potential fraud patterns
+7. **Backup Customer Data** - Regular backups of customer information
+8. **Review Transactions** - Monitor credit balance usage
+9. **Update Custom Fields** - Keep additional data current
+10. **Protect Privacy** - Follow data protection regulations
+
+## Customer Autocomplete
+
+Search for customers in forms:
+
+```php
+// Autocomplete search
+$filter_data = [
+    'filter_name'  => 'John',
+    'filter_email' => 'john@',
+    'start'        => 0,
+    'limit'        => 5  // Config: config_autocomplete_limit
+];
+
+$results = $this->model_customer_customer->getCustomers($filter_data);
+```
+
+<Note>
+Autocomplete helps quickly find customers when creating orders, viewing details, or linking customer data.
+</Note>
+
+## Technical Reference
+
+### Controller
+
+Location: `/upload/admin/controller/customer/customer.php`
+
+Key methods:
+- `index()` - Display customer listing
+- `form()` - Show add/edit customer form
+- `save()` - Save customer data
+- `delete()` - Delete customers
+- `enable()` / `disable()` - Toggle customer status
+- `unlock()` - Unlock customer account
+- `login()` - Admin-initiated customer login
+- `addHistory()` - Add customer note
+- `addTransaction()` - Add credit/debit
+- `addReward()` - Add reward points
+- `autocomplete()` - Search customers
+
+### Model
+
+Location: `/upload/admin/model/customer/customer.php`
+
+Key methods:
+- `addCustomer()` - Create customer
+- `editCustomer()` - Update customer
+- `deleteCustomer()` - Remove customer
+- `getCustomer()` - Fetch customer data
+- `getCustomers()` - Get customer list
+- `getAddresses()` - Get customer addresses
+- `getHistories()` - Get customer notes
+- `getTransactions()` - Get transactions
+- `getRewards()` - Get reward points
+- `getIps()` - Get IP addresses
+- `getTotalLoginAttempts()` - Check login attempts
+- `deleteLoginAttempts()` - Unlock account
+
+### Database Tables
+
+- `oc_customer` - Main customer data
+- `oc_address` - Customer addresses
+- `oc_customer_history` - Customer notes
+- `oc_customer_transaction` - Credit transactions
+- `oc_customer_reward` - Reward points
+- `oc_customer_ip` - IP address tracking
+- `oc_customer_login` - Login attempts
+- `oc_customer_authorize` - Auth tokens
+
+## Related Documentation
+
+- [Order Management](/store/orders) - Processing customer orders
+- [Catalog Management](/store/catalog) - Products customers purchase
+- [Product Management](/store/products) - Individual product details

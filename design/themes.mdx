@@ -1,0 +1,392 @@
+---
+title: Theme Management
+description: Learn how to install, configure, and customize themes in OpenCart to create a unique storefront appearance
+---
+
+## Overview
+
+Themes in OpenCart control the visual appearance and user experience of your storefront. OpenCart uses a flexible theme system that allows you to install multiple themes and switch between them, customize templates, and create unique designs for different stores.
+
+## Theme System Architecture
+
+OpenCart themes are built using:
+
+- **Twig Templates**: Template files with `.twig` extension for rendering HTML
+- **CSS Stylesheets**: Styling files located in `catalog/view/stylesheet/`
+- **JavaScript**: Client-side functionality and interactivity
+- **Extensions**: Theme plugins that extend functionality
+
+### Theme Locations
+
+<Tabs>
+  <Tab title="Core Templates">
+    Templates for the default theme are stored in:
+    ```
+    catalog/view/template/
+    ```
+    
+    These include:
+    - Product pages
+    - Category listings
+    - Checkout pages
+    - Common elements (header, footer)
+  </Tab>
+  
+  <Tab title="Extension Templates">
+    Extension-specific themes are located in:
+    ```
+    extension/{extension_name}/catalog/view/template/
+    ```
+    
+    Example:
+    ```
+    extension/opencart/catalog/view/template/
+    ```
+  </Tab>
+  
+  <Tab title="Stylesheets">
+    CSS files are stored in:
+    ```
+    catalog/view/stylesheet/stylesheet.css
+    ```
+  </Tab>
+</Tabs>
+
+## Installing Themes
+
+<Steps>
+  <Step title="Access Theme Extensions">
+    Navigate to **Extensions → Themes** in your admin panel to view available themes.
+    
+    The system scans for theme controllers in:
+    ```php
+    DIR_EXTENSION . '{extension}/admin/controller/theme/{code}.php'
+    ```
+  </Step>
+  
+  <Step title="Install Theme">
+    Click the **Install** button next to your desired theme. This:
+    
+    - Registers the theme in the database
+    - Adds admin permissions for the theme
+    - Registers autoloader paths
+    - Calls the theme's `install()` method if it exists
+    
+    ```php
+    $this->model_setting_extension->install('theme', $extension, $code);
+    ```
+  </Step>
+  
+  <Step title="Configure Theme">
+    After installation, click **Edit** to configure theme settings for each store.
+    
+    Enable the theme by setting:
+    ```php
+    'theme_{code}_status' => true
+    ```
+  </Step>
+</Steps>
+
+## Theme Configuration
+
+### Basic Theme Settings
+
+The basic theme controller shows how themes are configured:
+
+```php
+namespace Opencart\Admin\Controller\Extension\Opencart\Theme;
+
+class Basic extends \Opencart\System\Engine\Controller {
+    public function save(): void {
+        // Save theme settings per store
+        $this->load->model('setting/setting');
+        $this->model_setting_setting->editSetting(
+            'theme_basic', 
+            $this->request->post, 
+            $store_id
+        );
+    }
+}
+```
+
+### Multi-Store Configuration
+
+Themes can be configured separately for each store:
+
+```php
+// Get theme status for specific store
+$theme_status = $this->model_setting_setting->getValue(
+    'theme_' . $code . '_status', 
+    $store_id
+);
+```
+
+<Note>
+  Each store can use a different theme or different settings for the same theme.
+</Note>
+
+## Template Customization
+
+OpenCart allows you to override specific templates without modifying core files.
+
+### Template Override System
+
+<Steps>
+  <Step title="Navigate to Template Manager">
+    Go to **Design → Template** to access the template customization interface.
+  </Step>
+  
+  <Step title="Select Template to Override">
+    Choose from available templates:
+    
+    - Core catalog templates
+    - Extension templates (prefixed with `extension/`)
+    - Stylesheets
+    
+    ```php
+    // Core templates from
+    $directory = DIR_CATALOG . 'view/template/';
+    
+    // Extension templates from
+    $directory = DIR_EXTENSION . $extension . '/catalog/view/template/';
+    ```
+  </Step>
+  
+  <Step title="Edit Template Code">
+    Modify the template Twig code in the editor. The system:
+    
+    - Validates the template exists
+    - Stores your override in the database
+    - Applies it to the selected store
+    
+    ```php
+    $template_data = [
+        'store_id' => 0,
+        'route'    => 'common/home',
+        'code'     => '<custom twig code>',
+        'status'   => 1
+    ];
+    ```
+  </Step>
+  
+  <Step title="Enable Override">
+    Set the template status to **Enabled** to activate your customization.
+  </Step>
+</Steps>
+
+### Template Structure
+
+```twig
+{# Header section #}
+{{ header }}
+
+{# Main content #}
+<div class="container">
+  {% if products %}
+    <div class="row">
+      {% for product in products %}
+        <div class="col-md-3">
+          <div class="product-thumb">
+            <img src="{{ product.thumb }}" alt="{{ product.name }}">
+            <h4>{{ product.name }}</h4>
+            <p>{{ product.price }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+{# Footer section #}
+{{ footer }}
+```
+
+## Theme File Management
+
+### Reading Template Files
+
+The template controller loads existing template code:
+
+```php
+public function template(): void {
+    $path = $this->request->get['path'];
+    
+    if (substr($path, 0, 10) != 'extension/') {
+        // Default template
+        $file = DIR_CATALOG . 'view/template/' . $path . '.twig';
+    } else {
+        // Extension template
+        $part = explode('/', $path);
+        $file = DIR_EXTENSION . $part[1] . '/catalog/view/template/' . 
+                implode('/', array_slice($part, 2)) . '.twig';
+    }
+    
+    $json['code'] = file_get_contents($file);
+}
+```
+
+### Template Database Storage
+
+```php
+// Add template override
+$this->model_design_template->addTemplate([
+    'store_id' => 0,
+    'route'    => 'product/product',
+    'code'     => $template_code,
+    'status'   => 1
+]);
+
+// Edit existing override
+$this->model_design_template->editTemplate($template_id, $data);
+
+// Enable/disable template
+$this->model_design_template->editStatus($template_id, true);
+```
+
+## CSS Customization
+
+### Main Stylesheet
+
+The primary stylesheet is located at:
+
+```
+catalog/view/stylesheet/stylesheet.css
+```
+
+### Custom CSS
+
+Add custom CSS through:
+
+1. **Template overrides** - Inline styles in template files
+2. **Custom stylesheets** - Upload to stylesheet directory
+3. **Theme settings** - Some themes include custom CSS fields
+
+<Tip>
+  Use browser developer tools to inspect elements and identify CSS classes before customizing.
+</Tip>
+
+## Theme Development Best Practices
+
+### 1. Use Template Overrides
+
+```php
+// Don't modify core files directly
+// ❌ Bad: Editing catalog/view/template/common/header.twig
+
+// ✅ Good: Create override in Design → Template
+$this->model_design_template->addTemplate([
+    'route' => 'common/header',
+    'code'  => $custom_header_code
+]);
+```
+
+### 2. Store-Specific Themes
+
+```php
+// Configure different themes per store
+$this->model_setting_setting->editSetting(
+    'theme_basic',
+    ['theme_basic_status' => 1],
+    $store_id // Different store IDs
+);
+```
+
+### 3. Test Before Deploying
+
+- Test templates in a staging environment
+- Verify responsive design on multiple devices
+- Check cross-browser compatibility
+- Validate HTML and CSS
+
+### 4. Performance Optimization
+
+```twig
+{# Lazy load images #}
+<img src="{{ placeholder }}" data-src="{{ product.image }}" loading="lazy">
+
+{# Minimize CSS #}
+<link rel="stylesheet" href="style.min.css">
+
+{# Async JavaScript #}
+<script src="script.js" async></script>
+```
+
+## Theme Management API
+
+### Controller Methods
+
+```php
+// List all themes
+$this->load->controller('extension/theme.getList');
+
+// Install theme
+$this->load->controller('extension/theme.install', [
+    'extension' => 'opencart',
+    'code'      => 'basic'
+]);
+
+// Uninstall theme
+$this->load->controller('extension/theme.uninstall', [
+    'code' => 'basic'
+]);
+```
+
+### Model Methods
+
+```php
+// Template model
+$this->load->model('design/template');
+
+// Get template
+$template = $this->model_design_template->getTemplate($template_id);
+
+// Get all templates
+$templates = $this->model_design_template->getTemplates($filter_data);
+
+// Delete template
+$this->model_design_template->deleteTemplate($template_id);
+```
+
+## Troubleshooting
+
+### Theme Not Displaying
+
+<Steps>
+  <Step title="Check Theme Status">
+    Ensure theme is enabled:
+    ```php
+    'theme_{code}_status' => 1
+    ```
+  </Step>
+  
+  <Step title="Verify Store Configuration">
+    Check theme is assigned to the correct store in Extensions → Themes.
+  </Step>
+  
+  <Step title="Clear Cache">
+    Clear system cache and Twig cache:
+    ```bash
+    rm -rf system/storage/cache/*
+    ```
+  </Step>
+</Steps>
+
+### Template Override Not Working
+
+- Verify template status is enabled
+- Check route path matches exactly
+- Ensure store_id is correct
+- Validate Twig syntax
+
+### CSS Not Loading
+
+- Check file path and permissions
+- Clear browser cache
+- Verify stylesheet.css exists
+- Check for CSS syntax errors
+
+## Related Documentation
+
+- [Layout Configuration](/design/layouts) - Configure page layouts
+- [Banner Management](/design/banners) - Add promotional banners
+- [SEO Configuration](/design/seo) - Optimize for search engines

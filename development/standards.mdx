@@ -1,0 +1,487 @@
+---
+title: "Coding Standards and Conventions"
+description: "Follow OpenCart's coding standards, naming conventions, and best practices for consistent code quality"
+---
+
+## Overview
+
+OpenCart follows PSR-12 coding standards with custom framework conventions. All code must pass automated checks before merging.
+
+## PHP Standards
+
+### File Structure
+
+<CodeGroup>
+```php Basic Controller
+<?php
+namespace Opencart\Catalog\Controller\Product;
+/**
+ * Class Product
+ *
+ * @package Opencart\Catalog\Controller\Product
+ */
+class Product extends \Opencart\System\Engine\Controller {
+    /**
+     * Index
+     *
+     * @return ?\Opencart\System\Engine\Action
+     */
+    public function index() {
+        // Method implementation
+    }
+}
+```
+
+```php Basic Model
+<?php
+namespace Opencart\Catalog\Model\Catalog;
+/**
+ * Class Product
+ *
+ * Can be called using $this->load->model('catalog/product');
+ *
+ * @package Opencart\Catalog\Model\Catalog
+ */
+class Product extends \Opencart\System\Engine\Model {
+    /**
+     * Get Product
+     *
+     * @param int $product_id primary key of the product record
+     *
+     * @return array<string, mixed> product record that has product ID
+     */
+    public function getProduct(int $product_id): array {
+        // Method implementation
+    }
+}
+```
+</CodeGroup>
+
+### Namespace Conventions
+
+All classes **must** use proper PHP namespaces:
+
+| Location | Namespace Pattern | Example |
+|----------|------------------|---------|
+| Catalog Controller | `Opencart\Catalog\Controller\{Path}` | `Opencart\Catalog\Controller\Product\Product` |
+| Admin Controller | `Opencart\Admin\Controller\{Path}` | `Opencart\Admin\Controller\Sale\Order` |
+| Catalog Model | `Opencart\Catalog\Model\{Path}` | `Opencart\Catalog\Model\Catalog\Product` |
+| Admin Model | `Opencart\Admin\Model\{Path}` | `Opencart\Admin\Model\Sale\Order` |
+| Extension | `Opencart\{App}\Controller\Extension\{Vendor}\{Type}\{Name}` | `Opencart\Catalog\Controller\Extension\Opencart\Payment\BankTransfer` |
+| System Engine | `Opencart\System\Engine\{Class}` | `Opencart\System\Engine\Controller` |
+| System Library | `Opencart\System\Library\{Class}` | `Opencart\System\Library\DB` |
+
+### Type Declarations
+
+**Always** use type hints for parameters and return types:
+
+```php
+// ✅ Correct
+public function getProduct(int $product_id): array {
+    return $this->db->query("...")->row;
+}
+
+public function setStatus(int $product_id, bool $status): void {
+    $this->db->query("UPDATE ...");
+}
+
+public function getTotal(): float {
+    return 123.45;
+}
+
+// ❌ Incorrect - missing type hints
+public function getProduct($product_id) {
+    return $this->db->query("...")->row;
+}
+```
+
+### Property Declarations
+
+Use typed properties with visibility modifiers:
+
+```php
+class Product extends \Opencart\System\Engine\Model {
+    // ✅ Correct
+    protected \Opencart\System\Engine\Registry $registry;
+    private array $data = [];
+    
+    // ❌ Incorrect - no type declaration
+    private $data;
+}
+```
+
+## Naming Conventions
+
+### Classes
+
+- **PascalCase** for class names
+- Match filename exactly (case-sensitive)
+
+```php
+// File: catalog/controller/product/category.php
+class Category extends \Opencart\System\Engine\Controller {
+    // ...
+}
+```
+
+### Methods
+
+- **camelCase** for method names
+- Descriptive verb-based names
+
+```php
+// ✅ Correct
+public function getProduct(int $product_id): array
+public function addProduct(array $data): int
+public function deleteProduct(int $product_id): void
+public function getTotalProducts(array $filter = []): int
+
+// ❌ Incorrect
+public function product(int $id): array
+public function get_product(int $product_id): array
+```
+
+### Variables
+
+- **snake_case** for variables
+- Descriptive names
+
+```php
+// ✅ Correct
+$product_id = 123;
+$customer_group_id = 1;
+$total_products = 100;
+
+// ❌ Incorrect
+$pid = 123;
+$cgid = 1;
+$ProductId = 123;
+```
+
+### Constants
+
+- **SCREAMING_SNAKE_CASE** for constants
+- Defined in config files
+
+```php
+define('DIR_APPLICATION', '/var/www/html/catalog/');
+define('DB_PREFIX', 'oc_');
+define('HTTP_SERVER', 'https://example.com/');
+```
+
+## Database Queries
+
+### Parameterization
+
+**Always** escape user input:
+
+```php
+// ✅ Correct - using escape()
+$this->db->query("SELECT * FROM `" . DB_PREFIX . "product` 
+    WHERE `product_id` = '" . (int)$product_id . "'
+    AND `name` = '" . $this->db->escape($name) . "'");
+
+// ❌ Incorrect - SQL injection risk
+$this->db->query("SELECT * FROM product WHERE product_id = $product_id");
+```
+
+### Table Prefixes
+
+**Always** use `DB_PREFIX` constant:
+
+```php
+// ✅ Correct
+$this->db->query("SELECT * FROM `" . DB_PREFIX . "product` WHERE ...");
+
+// ❌ Incorrect
+$this->db->query("SELECT * FROM `oc_product` WHERE ...");
+```
+
+### Query Style
+
+- Use backticks for table and column names
+- Cast integers explicitly with `(int)`
+- Escape strings with `$this->db->escape()`
+
+```php
+$query = $this->db->query("
+    SELECT DISTINCT *
+    FROM `" . DB_PREFIX . "product` `p`
+    LEFT JOIN `" . DB_PREFIX . "product_description` `pd` 
+        ON (`p`.`product_id` = `pd`.`product_id`)
+    WHERE `p`.`product_id` = '" . (int)$product_id . "'
+        AND `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "'
+        AND `p`.`status` = '1'
+");
+```
+
+## MVC Conventions
+
+### Controllers
+
+- Load models using `$this->load->model()`
+- Pass data to views as arrays
+- Return output strings or Action objects
+
+```php
+public function index(): void {
+    // Load dependencies
+    $this->load->language('product/product');
+    $this->load->model('catalog/product');
+    
+    // Get data
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    if (!$product_info) {
+        return new \Opencart\System\Engine\Action('error/not_found');
+    }
+    
+    // Prepare view data
+    $data['heading_title'] = $product_info['name'];
+    $data['product_id'] = $product_info['product_id'];
+    
+    // Render view
+    $this->response->setOutput($this->load->view('product/product', $data));
+}
+```
+
+### Models
+
+- Contain **only** business logic and database operations
+- Return data, never render views
+- Use descriptive method names (get*, add*, edit*, delete*, getTotal*)
+
+```php
+public function getProduct(int $product_id): array {
+    $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` 
+        WHERE `product_id` = '" . (int)$product_id . "'");
+    
+    return $query->row;
+}
+
+public function getTotalProducts(array $filter = []): int {
+    $sql = "SELECT COUNT(*) AS total FROM `" . DB_PREFIX . "product`";
+    
+    $query = $this->db->query($sql);
+    
+    return (int)$query->row['total'];
+}
+```
+
+### Views
+
+- Use Twig templating engine
+- Never contain business logic
+- Access data passed from controller
+
+```twig
+{# product/product.twig #}
+<div class="product">
+    <h1>{{ heading_title }}</h1>
+    <p>Product ID: {{ product_id }}</p>
+</div>
+```
+
+## Code Organization
+
+### Use Loader Methods
+
+Reference existing models before writing raw SQL:
+
+```php
+// ✅ Correct - use existing model
+$this->load->model('catalog/product');
+$products = $this->model_catalog_product->getProducts($filter);
+
+// ❌ Incorrect - duplicate logic
+$query = $this->db->query("SELECT * FROM ...");
+```
+
+### Avoid Core Modifications
+
+**Never** modify files in `system/` directory:
+
+- ✅ Use events to extend functionality
+- ✅ Create extensions in `extension/{vendor}/`
+- ❌ Don't edit core controllers or models
+- ❌ Don't modify system libraries
+
+### Extension Structure
+
+Extensions must follow this structure:
+
+```
+extension/{vendor}/
+├── admin/
+│   ├── controller/{type}/{name}.php
+│   ├── model/{type}/{name}.php
+│   ├── view/template/{type}/{name}.twig
+│   └── language/en-gb/{type}/{name}.php
+└── catalog/
+    ├── controller/{type}/{name}.php
+    └── model/{type}/{name}.php
+```
+
+## Documentation
+
+### PHPDoc Blocks
+
+All classes and public methods **must** have PHPDoc comments:
+
+```php
+/**
+ * Class Product
+ *
+ * Can be called using $this->load->model('catalog/product');
+ *
+ * @package Opencart\Catalog\Model\Catalog
+ */
+class Product extends \Opencart\System\Engine\Model {
+    /**
+     * Get Product
+     *
+     * Get the record of the product record in the database.
+     *
+     * @param int $product_id primary key of the product record
+     *
+     * @return array<string, mixed> product record that has product ID
+     *
+     * @example
+     *
+     * $this->load->model('catalog/product');
+     *
+     * $product_info = $this->model_catalog_product->getProduct($product_id);
+     */
+    public function getProduct(int $product_id): array {
+        // Implementation
+    }
+}
+```
+
+## Automated Checks
+
+Before committing, run these tools:
+
+<Tabs>
+<Tab title="PHP Syntax">
+```bash
+find upload -type f -name "*.php" ! -path 'upload/system/storage/vendor/*' -exec php -l -n {} +
+```
+</Tab>
+
+<Tab title="PHPStan">
+```bash
+php tools/phpstan.phar analyze --no-progress
+```
+Runs static analysis at level 6.
+</Tab>
+
+<Tab title="PHP-CS-Fixer">
+```bash
+# Check only
+php tools/php-cs-fixer.phar fix --dry-run --diff
+
+# Auto-fix
+php tools/php-cs-fixer.phar fix
+```
+</Tab>
+</Tabs>
+
+## Git Workflow
+
+1. **Create a branch** from `master`
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+2. **Commit clearly** with imperative messages
+   ```bash
+   git commit -m "Add product variant support to cart"
+   ```
+
+3. **Keep diffs focused** - avoid formatting-only changes
+
+4. **Rebase before PR**
+   ```bash
+   git fetch origin
+   git rebase origin/master
+   ```
+
+<Warning>
+Pull requests that don't pass automated checks will not be merged. Run all quality tools locally before submitting.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="Use Registry Objects">
+Access services through `$this->` magic method:
+
+```php
+// ✅ Correct
+$this->db->query("...");
+$this->config->get('config_name');
+$this->session->data['user_id'];
+
+// ❌ Incorrect
+global $db;
+$_SESSION['user_id'];
+```
+</Accordion>
+
+<Accordion title="Validate Input">
+Always validate and sanitize user input:
+
+```php
+if (isset($this->request->get['product_id'])) {
+    $product_id = (int)$this->request->get['product_id'];
+} else {
+    $product_id = 0;
+}
+```
+</Accordion>
+
+<Accordion title="Use Language Files">
+Never hardcode text strings:
+
+```php
+// ✅ Correct
+$this->load->language('product/product');
+$data['heading_title'] = $this->language->get('heading_title');
+
+// ❌ Incorrect
+$data['heading_title'] = 'Product Details';
+```
+</Accordion>
+
+<Accordion title="Leverage Events">
+Use the event system instead of modifying core files:
+
+```php
+// In your extension's install method
+$this->load->model('setting/event');
+$this->model_setting_event->addEvent(
+    'my_extension',
+    'catalog/model/checkout/order/addOrder/after',
+    'extension/myvendor/module/myextension.afterAddOrder'
+);
+```
+</Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="MVC Pattern" icon="diagram-project" href="/development/mvc-pattern">
+    Understand the MVC architecture
+  </Card>
+  <Card title="Routing System" icon="route" href="/development/routing">
+    Learn URL routing
+  </Card>
+  <Card title="Database Layer" icon="database" href="/development/database">
+    Work with models and queries
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Extend with events
+  </Card>
+</CardGroup>

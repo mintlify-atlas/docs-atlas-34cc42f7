@@ -1,0 +1,544 @@
+---
+title: Payment Gateway Extensions
+description: Integrate payment methods into your OpenCart store to accept customer payments
+---
+
+Payment extensions enable your OpenCart store to accept payments through various gateways and methods. They handle the integration between your store and payment processors, ensuring secure transaction processing.
+
+## What Are Payment Extensions?
+
+Payment extensions are specialized controllers that:
+
+- Display payment options during checkout
+- Process payment transactions
+- Handle payment confirmations and callbacks
+- Update order statuses based on payment results
+- Store transaction records
+
+<Note>
+  Payment extensions are located in `upload/extension/[vendor]/[admin|catalog]/controller/payment/`
+</Note>
+
+## Built-in Payment Methods
+
+OpenCart includes four basic payment methods out of the box:
+
+<CardGroup cols={2}>
+  <Card title="Bank Transfer" icon="building-columns">
+    Accept direct bank transfers with account details displayed to customers
+  </Card>
+  <Card title="Cash on Delivery (COD)" icon="money-bill">
+    Allow customers to pay in cash when receiving their order
+  </Card>
+  <Card title="Cheque" icon="money-check">
+    Accept check/cheque payments with payee information
+  </Card>
+  <Card title="Free Checkout" icon="gift">
+    Process zero-value orders automatically
+  </Card>
+</CardGroup>
+
+## Payment Extension Architecture
+
+### Admin Controller
+
+Location: `admin/controller/extension/[vendor]/payment/[name].php`
+
+The admin controller handles configuration:
+
+```php
+namespace Opencart\Admin\Controller\Extension\Opencart\Payment;
+
+class BankTransfer extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        // Load language file
+        $this->load->language('extension/opencart/payment/bank_transfer');
+        
+        // Set page title
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Build breadcrumbs
+        $data['breadcrumbs'] = [];
+        
+        // Form URLs
+        $data['save'] = $this->url->link(
+            'extension/opencart/payment/bank_transfer.save'
+        );
+        $data['back'] = $this->url->link(
+            'marketplace/extension',
+            '&type=payment'
+        );
+        
+        // Load current settings
+        $data['payment_bank_transfer_status'] = 
+            $this->config->get('payment_bank_transfer_status');
+        $data['payment_bank_transfer_sort_order'] = 
+            $this->config->get('payment_bank_transfer_sort_order');
+        
+        // Load geo zones for regional restrictions
+        $this->load->model('localisation/geo_zone');
+        $data['geo_zones'] = $this->model_localisation_geo_zone->getGeoZones();
+        
+        // Load order statuses
+        $this->load->model('localisation/order_status');
+        $data['order_statuses'] = 
+            $this->model_localisation_order_status->getOrderStatuses();
+        
+        // Display view
+        $this->response->setOutput(
+            $this->load->view('extension/opencart/payment/bank_transfer', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/opencart/payment/bank_transfer');
+        
+        $json = [];
+        
+        // Check permissions
+        if (!$this->user->hasPermission('modify', 'extension/opencart/payment/bank_transfer')) {
+            $json['error']['warning'] = $this->language->get('error_permission');
+        }
+        
+        // Validate required fields
+        $this->load->model('localisation/language');
+        $languages = $this->model_localisation_language->getLanguages();
+        
+        foreach ($languages as $language) {
+            if (empty($this->request->post['payment_bank_transfer_bank_' . $language['language_id']])) {
+                $json['error']['bank_' . $language['language_id']] = 
+                    $this->language->get('error_bank');
+            }
+        }
+        
+        if (!$json) {
+            // Save settings
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'payment_bank_transfer',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+Location reference: `admin/controller/extension/opencart/payment/bank_transfer.php:1`
+
+### Catalog Controller
+
+Location: `catalog/controller/extension/[vendor]/payment/[name].php`
+
+The catalog controller handles the checkout process:
+
+```php
+namespace Opencart\Catalog\Controller\Extension\Opencart\Payment;
+
+class Cod extends \Opencart\System\Engine\Controller {
+    /**
+     * Display payment method in checkout
+     */
+    public function index(): string {
+        $this->load->language('extension/opencart/payment/cod');
+        
+        $data['language'] = $this->config->get('config_language');
+        
+        // Return payment form HTML
+        return $this->load->view('extension/opencart/payment/cod', $data);
+    }
+    
+    /**
+     * Process payment confirmation
+     */
+    public function confirm(): void {
+        $this->load->language('extension/opencart/payment/cod');
+        
+        $json = [];
+        
+        // Validate order exists
+        if (isset($this->session->data['order_id'])) {
+            $this->load->model('checkout/order');
+            
+            $order_info = $this->model_checkout_order->getOrder(
+                $this->session->data['order_id']
+            );
+            
+            if (!$order_info) {
+                $json['redirect'] = $this->url->link('checkout/failure');
+                unset($this->session->data['order_id']);
+            }
+        } else {
+            $json['error'] = $this->language->get('error_order');
+        }
+        
+        // Validate payment method
+        if (!isset($this->session->data['payment_method']) || 
+            $this->session->data['payment_method']['code'] != 'cod.cod') {
+            $json['error'] = $this->language->get('error_payment_method');
+        }
+        
+        if (!$json) {
+            // Update order status
+            $this->load->model('checkout/order');
+            $this->model_checkout_order->addHistory(
+                $this->session->data['order_id'],
+                $this->config->get('payment_cod_order_status_id')
+            );
+            
+            // Redirect to success page
+            $json['redirect'] = $this->url->link('checkout/success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+Location reference: `catalog/controller/extension/opencart/payment/cod.php:1`
+
+## Common Configuration Options
+
+Most payment extensions share these configuration settings:
+
+### Status
+```php
+payment_{code}_status = 1  // Enable the payment method
+```
+
+Controls whether the payment method appears during checkout.
+
+### Sort Order
+```php
+payment_{code}_sort_order = 1  // Display order
+```
+
+Determines the order in which payment methods are shown to customers.
+
+### Order Status
+```php
+payment_{code}_order_status_id = 2  // Pending, Processing, etc.
+```
+
+The initial order status after payment is confirmed.
+
+### Geo Zone
+```php
+payment_{code}_geo_zone_id = 0  // 0 = all zones
+```
+
+Restricts the payment method to specific geographic regions.
+
+<Accordion title="Example: Cash on Delivery Configuration">
+  ```php
+  // Enable COD
+  payment_cod_status = 1
+  
+  // Display first
+  payment_cod_sort_order = 1
+  
+  // Set to Pending status after order
+  payment_cod_order_status_id = 1
+  
+  // Available only in "Local" geo zone
+  payment_cod_geo_zone_id = 3
+  ```
+</Accordion>
+
+## Payment Method Structure
+
+### Required Methods
+
+<Warning>
+  Both `index()` and `confirm()` methods are required for a payment extension to function properly.
+</Warning>
+
+**`index(): string`**
+- Displays the payment form/information during checkout
+- Returns HTML that is inserted into the checkout page
+- Should load necessary JavaScript/CSS
+- Can display instructions, forms, or embedded payment widgets
+
+**`confirm(): void`**
+- Processes the actual payment
+- Validates order and payment data
+- Updates order status
+- Handles success/error responses
+- Redirects to success or failure page
+
+### Optional Methods
+
+**`callback(): void`**
+- Handles payment gateway callbacks (IPN, webhooks)
+- Processes asynchronous payment notifications
+- Validates callback authenticity
+- Updates order status based on payment result
+
+**`webhook(): void`**  
+- Similar to callback, processes webhook notifications
+- Used by modern payment gateways
+
+## Configuration Page Structure
+
+Typical payment configuration includes:
+
+### Bank Transfer Example
+
+```php
+// Multi-language bank details
+foreach ($languages as $language) {
+    $data['payment_bank_transfer_bank'][$language['language_id']] = 
+        $this->config->get('payment_bank_transfer_bank_' . $language['language_id']);
+}
+
+// Order status selection
+$data['payment_bank_transfer_order_status_id'] = 
+    $this->config->get('payment_bank_transfer_order_status_id');
+
+// Geo zone restriction
+$data['payment_bank_transfer_geo_zone_id'] = 
+    $this->config->get('payment_bank_transfer_geo_zone_id');
+
+// Enable/disable
+$data['payment_bank_transfer_status'] = 
+    $this->config->get('payment_bank_transfer_status');
+
+// Display order
+$data['payment_bank_transfer_sort_order'] = 
+    $this->config->get('payment_bank_transfer_sort_order');
+```
+
+Location reference: `admin/controller/extension/opencart/payment/bank_transfer.php:42`
+
+## Developing Payment Extensions
+
+### Basic Payment Extension Template
+
+```php
+// admin/controller/extension/myvendor/payment/gateway.php
+namespace Opencart\Admin\Controller\Extension\Myvendor\Payment;
+
+class Gateway extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/myvendor/payment/gateway');
+        
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // URLs
+        $data['save'] = $this->url->link('extension/myvendor/payment/gateway.save');
+        $data['back'] = $this->url->link('marketplace/extension', '&type=payment');
+        
+        // API credentials
+        $data['payment_gateway_api_key'] = 
+            $this->config->get('payment_gateway_api_key');
+        $data['payment_gateway_secret'] = 
+            $this->config->get('payment_gateway_secret');
+        $data['payment_gateway_test_mode'] = 
+            $this->config->get('payment_gateway_test_mode');
+        
+        // Standard settings
+        $data['payment_gateway_order_status_id'] = 
+            $this->config->get('payment_gateway_order_status_id');
+        $data['payment_gateway_geo_zone_id'] = 
+            $this->config->get('payment_gateway_geo_zone_id');
+        $data['payment_gateway_status'] = 
+            $this->config->get('payment_gateway_status');
+        $data['payment_gateway_sort_order'] = 
+            $this->config->get('payment_gateway_sort_order');
+        
+        // Load order statuses and geo zones
+        $this->load->model('localisation/order_status');
+        $this->load->model('localisation/geo_zone');
+        
+        $data['order_statuses'] = 
+            $this->model_localisation_order_status->getOrderStatuses();
+        $data['geo_zones'] = 
+            $this->model_localisation_geo_zone->getGeoZones();
+        
+        $this->response->setOutput(
+            $this->load->view('extension/myvendor/payment/gateway', $data)
+        );
+    }
+    
+    public function save(): void {
+        $this->load->language('extension/myvendor/payment/gateway');
+        
+        $json = [];
+        
+        if (!$this->user->hasPermission('modify', 'extension/myvendor/payment/gateway')) {
+            $json['error']['warning'] = $this->language->get('error_permission');
+        }
+        
+        // Validate API credentials
+        if (!$this->request->post['payment_gateway_api_key']) {
+            $json['error']['api_key'] = $this->language->get('error_api_key');
+        }
+        
+        if (!$json) {
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting(
+                'payment_gateway',
+                $this->request->post
+            );
+            
+            $json['success'] = $this->language->get('text_success');
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+}
+```
+
+### Catalog Payment Processing
+
+```php
+// catalog/controller/extension/myvendor/payment/gateway.php
+namespace Opencart\Catalog\Controller\Extension\Myvendor\Payment;
+
+class Gateway extends \Opencart\System\Engine\Controller {
+    public function index(): string {
+        $this->load->language('extension/myvendor/payment/gateway');
+        
+        // Prepare payment form data
+        $data['button_confirm'] = $this->language->get('button_confirm');
+        $data['language'] = $this->config->get('config_language');
+        
+        // Add payment gateway JavaScript
+        $data['api_key'] = $this->config->get('payment_gateway_api_key');
+        $data['test_mode'] = $this->config->get('payment_gateway_test_mode');
+        
+        return $this->load->view('extension/myvendor/payment/gateway', $data);
+    }
+    
+    public function confirm(): void {
+        $this->load->language('extension/myvendor/payment/gateway');
+        
+        $json = [];
+        
+        // Validate session
+        if (!isset($this->session->data['order_id'])) {
+            $json['error'] = $this->language->get('error_order');
+        }
+        
+        if (!$json) {
+            // Load order
+            $this->load->model('checkout/order');
+            $order_info = $this->model_checkout_order->getOrder(
+                $this->session->data['order_id']
+            );
+            
+            // Process payment with gateway API
+            $payment_data = [
+                'amount' => $order_info['total'],
+                'currency' => $order_info['currency_code'],
+                'order_id' => $order_info['order_id'],
+                'token' => $this->request->post['payment_token']
+            ];
+            
+            $result = $this->processPayment($payment_data);
+            
+            if ($result['success']) {
+                // Update order status
+                $this->model_checkout_order->addHistory(
+                    $this->session->data['order_id'],
+                    $this->config->get('payment_gateway_order_status_id'),
+                    'Payment completed. Transaction ID: ' . $result['transaction_id']
+                );
+                
+                $json['redirect'] = $this->url->link('checkout/success');
+            } else {
+                $json['error'] = $result['error'];
+            }
+        }
+        
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+    
+    private function processPayment(array $data): array {
+        // Implement gateway API integration
+        // Return ['success' => true, 'transaction_id' => '...']
+        // or ['success' => false, 'error' => '...']
+    }
+    
+    public function callback(): void {
+        // Handle payment gateway callbacks
+        $this->load->model('checkout/order');
+        
+        // Verify callback authenticity
+        // Update order status based on payment result
+    }
+}
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Callbacks" icon="shield-check">
+    Always verify webhook signatures and callback authenticity
+  </Card>
+  <Card title="Secure Credentials" icon="lock">
+    Store API keys and secrets securely, never in plain text
+  </Card>
+  <Card title="Use HTTPS" icon="globe">
+    Require SSL/TLS for all payment processing
+  </Card>
+  <Card title="PCI Compliance" icon="credit-card">
+    Never store sensitive card data on your server
+  </Card>
+</CardGroup>
+
+## Testing Payment Extensions
+
+### Test Mode
+
+Always implement a test/sandbox mode:
+
+```php
+if ($this->config->get('payment_gateway_test_mode')) {
+    $api_url = 'https://sandbox.gateway.com/api';
+} else {
+    $api_url = 'https://api.gateway.com/api';
+}
+```
+
+### Test Cards
+
+Provide test card numbers in your documentation:
+
+<Accordion title="Common Test Cards">
+  - **Visa Success**: 4111 1111 1111 1111
+  - **Visa Decline**: 4000 0000 0000 0002
+  - **Mastercard Success**: 5555 5555 5555 4444
+  - **Amex Success**: 3782 822463 10005
+  
+  Note: Use any future expiry date and any CVV.
+</Accordion>
+
+## Troubleshooting
+
+### Payment Method Not Showing
+
+1. **Check status**: Is the payment method enabled?
+2. **Check geo zone**: Does customer's location match?
+3. **Check minimum/maximum**: Are order total limits met?
+4. **Check installation**: Is the extension installed?
+
+### Payment Confirmation Fails
+
+1. **Check order session**: Is order_id set in session?
+2. **Check payment method**: Is payment_method set correctly?
+3. **Check API credentials**: Are they valid and correct?
+4. **Check error logs**: Review system/storage/logs/error.log
+
+## Next Steps
+
+- [Shipping Extensions](/extensions/shipping) - Shipping method integration
+- [Module Extensions](/extensions/modules) - Display modules
+- [Extensions Overview](/extensions/overview) - Extension system basics

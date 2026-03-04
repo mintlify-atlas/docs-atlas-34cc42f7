@@ -1,0 +1,339 @@
+---
+title: Affiliate Program Management
+description: Set up and manage an affiliate program to expand your reach and drive sales through partner referrals
+---
+
+OpenCart's affiliate program allows you to recruit partners who promote your store and earn commissions on sales they generate. This creates a performance-based marketing channel that can significantly expand your reach.
+
+## Accessing Affiliates
+
+Navigate to **Marketing > Affiliates** in your admin panel to view and manage your affiliate partners.
+
+## How the Affiliate System Works
+
+Affiliates receive a unique tracking code that they add to your store's URLs. When customers visit through these tracked links and make purchases, the affiliate earns a commission.
+
+**Tracking URL Format**: `https://yourstore.com/index.php?tracking=AFFILIATE_CODE`
+
+<Note>
+  Affiliates must be existing customers in your store. The affiliate program extends customer accounts with additional commission and payment information.
+</Note>
+
+## Creating a New Affiliate
+
+<Steps>
+  <Step title="Select Customer">
+    Click **Add New** and search for an existing customer account. Affiliates must have a customer account first.
+  </Step>
+  
+  <Step title="Enter Company Details (Optional)">
+    If the affiliate represents a company:
+    - **Company Name**: Business name
+    - **Website**: Affiliate's website URL
+  </Step>
+  
+  <Step title="Set Tracking Code">
+    Enter a unique tracking code (automatically generated) that the affiliate will use in referral links.
+  </Step>
+  
+  <Step title="Configure Commission">
+    Set the commission rate (percentage) this affiliate will earn on sales. This can be different for each affiliate.
+  </Step>
+  
+  <Step title="Set Payment Method">
+    Choose how the affiliate will receive payments:
+    - **Cheque**: Payable name
+    - **PayPal**: PayPal email address
+    - **Bank Transfer**: Bank account details
+  </Step>
+  
+  <Step title="Tax Information (Optional)">
+    Enter the affiliate's tax ID or VAT number if required for tax reporting.
+  </Step>
+  
+  <Step title="Enable Affiliate">
+    Set **Status** to **Enabled** to activate the affiliate account.
+  </Step>
+</Steps>
+
+## Payment Methods
+
+<Accordion title="Cheque Payment">
+  For affiliates who prefer check payments.
+  
+  **Required Information**:
+  - Name to print on the check
+  
+  ```php
+  // Controller: upload/admin/controller/marketing/affiliate.php:314
+  $affiliate_data = [
+    'payment_method' => 'cheque',
+    'cheque' => 'John Smith'
+  ];
+  ```
+</Accordion>
+
+<Accordion title="PayPal Payment">
+  For fast electronic payments via PayPal.
+  
+  **Required Information**:
+  - Valid PayPal email address
+  
+  ```php
+  $affiliate_data = [
+    'payment_method' => 'paypal',
+    'paypal' => 'affiliate@example.com'
+  ];
+  ```
+  
+  <Tip>
+    PayPal is the fastest and most convenient payment method for international affiliates.
+  </Tip>
+</Accordion>
+
+<Accordion title="Bank Transfer">
+  For direct bank deposits.
+  
+  **Required Information**:
+  - Bank name
+  - Branch number
+  - SWIFT code (for international transfers)
+  - Account holder name
+  - Account number
+  
+  ```php
+  $affiliate_data = [
+    'payment_method' => 'bank',
+    'bank_name' => 'First National Bank',
+    'bank_branch_number' => '12345',
+    'bank_swift_code' => 'FNBAUS33',
+    'bank_account_name' => 'John Smith',
+    'bank_account_number' => '9876543210'
+  ];
+  ```
+</Accordion>
+
+## Managing Affiliate Commissions
+
+### Viewing Affiliate Balance
+
+Each affiliate has a running balance that shows total commissions earned:
+
+1. View the **Balance** column in the affiliates list
+2. Click **Edit** on an affiliate to see detailed transaction history
+3. Navigate to the **Transaction** tab for a complete commission log
+
+### Processing Payments
+
+When you're ready to pay affiliates:
+
+<Steps>
+  <Step title="Select Affiliates">
+    Check the boxes next to affiliates with balances you want to pay.
+  </Step>
+  
+  <Step title="Export Payment Data">
+    Click **Export** to download a CSV file with payment information formatted for each payment method.
+  </Step>
+  
+  <Step title="Process Payments">
+    Use the exported data to process payments through your chosen method (PayPal Mass Pay, bank transfer, etc.).
+  </Step>
+  
+  <Step title="Mark as Complete">
+    Select the paid affiliates and click **Complete** to:
+    - Deduct the balance from their account
+    - Record the payment in transaction history
+    - Reset their balance to zero
+  </Step>
+</Steps>
+
+<Note>
+  The CSV export format varies by payment method to match the import format of popular payment processors.
+</Note>
+
+## Filtering and Searching Affiliates
+
+Use the filter panel to find specific affiliates:
+
+- **Customer Name**: Search by affiliate name
+- **Tracking Code**: Find by tracking code
+- **Payment Method**: Filter by payment type (cheque, PayPal, bank)
+- **Commission Rate**: Find affiliates with specific commission rates
+- **Date Range**: View affiliates who joined within a date range
+- **Status**: Filter by enabled/disabled status
+
+## Tracking Affiliate Performance
+
+### Referral Reports
+
+View detailed analytics for each affiliate:
+
+1. Click **Edit** on an affiliate
+2. Go to the **Report** tab
+3. Review metrics including:
+   - IP addresses of referrals
+   - Store visited
+   - Country of origin
+   - Date and time of clicks
+
+### Commission Calculation
+
+Commissions are automatically calculated when:
+
+1. A customer clicks an affiliate's tracking link
+2. The tracking code is stored in their session
+3. They complete an order
+4. The order status changes to "Complete"
+5. Commission is credited to the affiliate's balance
+
+<Tip>
+  Use the **Calculate** button to recalculate all affiliate balances based on current transaction data if you suspect discrepancies.
+</Tip>
+
+## Practical Examples
+
+### Example 1: Blog Affiliate Partnership
+
+Set up a blogger to promote your products:
+
+- **Customer**: Existing customer account for the blogger
+- **Company**: "Fashion Blog Weekly"
+- **Website**: "https://fashionblogweekly.com"
+- **Tracking Code**: "FASHBLOG" (memorable and brandable)
+- **Commission**: 8% (standard rate for content creators)
+- **Payment**: PayPal
+- **Status**: Enabled
+
+**Share with affiliate**: `https://yourstore.com/index.php?tracking=FASHBLOG`
+
+### Example 2: High-Volume Partner
+
+Reward a high-performing affiliate with better terms:
+
+- **Customer**: Top-performing affiliate
+- **Company**: "Mega Deals Network"
+- **Tracking Code**: "MEGADEALS"
+- **Commission**: 12% (increased from standard 8%)
+- **Payment**: Bank transfer
+- **Status**: Enabled
+
+### Example 3: Influencer Campaign
+
+Create unique codes for multiple influencers:
+
+- **Tracking Code**: Use influencer name (e.g., "SARAH2024")
+- **Commission**: 10%
+- **Payment**: PayPal (preferred by most influencers)
+- **Duration**: Set to disabled after campaign ends
+
+## Best Practices
+
+1. **Clear Terms**: Document commission rates, payment schedules, and terms in an affiliate agreement
+2. **Unique Tracking Codes**: Create memorable, easy-to-share tracking codes
+3. **Regular Payments**: Establish a consistent payment schedule (monthly, quarterly)
+4. **Monitor Performance**: Review the reports tab to identify top performers
+5. **Tiered Commissions**: Offer higher rates to top-performing affiliates
+6. **Marketing Materials**: Provide affiliates with banners, product images, and promotional copy
+7. **Communication**: Keep affiliates informed about new products and promotions
+
+<Tip>
+  Consider creating a dedicated affiliate resources page on your website with tracking links, banners, and performance guidelines.
+</Tip>
+
+## Technical Reference
+
+### Database Structure
+
+Affiliate data is stored in the `oc_customer_affiliate` table:
+
+- `customer_id`: Link to customer account (primary key)
+- `company`: Company name
+- `website`: Affiliate website
+- `tracking`: Unique tracking code
+- `commission`: Commission percentage (e.g., 10.00)
+- `balance`: Current commission balance
+- `tax`: Tax ID or VAT number
+- `payment_method`: 'cheque', 'paypal', or 'bank'
+- `cheque`: Payable name for checks
+- `paypal`: PayPal email address
+- `bank_name`: Bank name
+- `bank_branch_number`: Branch number
+- `bank_swift_code`: SWIFT/BIC code
+- `bank_account_name`: Account holder name
+- `bank_account_number`: Bank account number
+- `status`: Active status (0 or 1)
+
+### Model Methods
+
+Key methods in `/upload/admin/model/marketing/affiliate.php`:
+
+- `addAffiliate($data)`: Create new affiliate
+- `editAffiliate($customer_id, $data)`: Update affiliate
+- `deleteAffiliate($customer_id)`: Remove affiliate
+- `getAffiliate($customer_id)`: Get affiliate details
+- `getAffiliateByTracking($tracking)`: Find by tracking code
+- `editBalance($customer_id, $amount)`: Update commission balance
+- `getReports($customer_id)`: Get referral analytics
+
+### Controller Location
+
+- **Admin Controller**: `/upload/admin/controller/marketing/affiliate.php`
+- **Admin Model**: `/upload/admin/model/marketing/affiliate.php`
+
+## Advanced Features
+
+### CSV Export for Mass Payments
+
+The export function generates payment files in formats compatible with:
+
+- **PayPal Mass Pay**: Email, Amount, Currency, Customer Name, Note
+- **Bank Transfer**: Account details and amount
+- **Cheque**: Payee name and amount
+
+Access via: `marketing/affiliate.csv` (line 768)
+
+### Custom Commission Rates
+
+You can set different commission rates for each affiliate:
+
+- Default commission is configured in **Settings > Store > Affiliate**
+- Individual rates override the default when set in the affiliate profile
+- Useful for tiered affiliate programs or special partnerships
+
+<Note>
+  Commission rates are stored as percentages. Enter 10.00 for 10%, not 0.10.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Affiliate tracking not working">
+  **Check**:
+  - Tracking code is correct in the URL
+  - Affiliate status is enabled
+  - Customer has cookies enabled
+  - Tracking code doesn't contain special characters
+  
+  **Solution**: Verify the tracking URL format and test with a different browser.
+</Accordion>
+
+<Accordion title="Commissions not calculating">
+  **Check**:
+  - Order status is set to a "Complete" status
+  - Complete status orders are configured in Settings
+  - Affiliate was properly tracked before purchase
+  
+  **Solution**: Click **Calculate** to recalculate all balances.
+</Accordion>
+
+<Accordion title="Cannot add customer as affiliate">
+  **Cause**: Customer may already be an affiliate.
+  
+  **Solution**: Search the affiliates list for the customer's name to check if they already exist.
+</Accordion>
+
+<Accordion title="Export not including all affiliates">
+  **Cause**: Export only includes selected affiliates with positive balances.
+  
+  **Solution**: Select affiliates with balances > $0 before clicking Export.
+</Accordion>

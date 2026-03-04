@@ -1,0 +1,571 @@
+---
+title: Layout Configuration
+description: Configure page layouts, manage routes, and position modules across your OpenCart store
+---
+
+## Overview
+
+Layouts in OpenCart define the structure of pages and determine which modules appear in specific positions. Each layout can be assigned to different routes (pages) and stores, giving you complete control over your store's appearance.
+
+## Layout System Architecture
+
+The layout system consists of three main components:
+
+1. **Layouts** - Container definitions with names (e.g., "Home", "Product", "Category")
+2. **Layout Routes** - URL patterns that trigger specific layouts
+3. **Layout Modules** - Module assignments to positions within layouts
+
+### Database Structure
+
+```sql
+-- Main layout table
+CREATE TABLE `oc_layout` (
+  `layout_id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  PRIMARY KEY (`layout_id`)
+);
+
+-- Layout routes (page assignments)
+CREATE TABLE `oc_layout_route` (
+  `layout_route_id` int NOT NULL AUTO_INCREMENT,
+  `layout_id` int NOT NULL,
+  `store_id` int NOT NULL,
+  `route` varchar(64) NOT NULL,
+  PRIMARY KEY (`layout_route_id`)
+);
+
+-- Layout modules (widget positions)
+CREATE TABLE `oc_layout_module` (
+  `layout_module_id` int NOT NULL AUTO_INCREMENT,
+  `layout_id` int NOT NULL,
+  `code` varchar(64) NOT NULL,
+  `position` varchar(14) NOT NULL,
+  `sort_order` int NOT NULL,
+  PRIMARY KEY (`layout_module_id`)
+);
+```
+
+## Managing Layouts
+
+### Creating a Layout
+
+<Steps>
+  <Step title="Navigate to Layouts">
+    Go to **Design → Layouts** in your admin panel.
+  </Step>
+  
+  <Step title="Add New Layout">
+    Click the **Add New** button to create a layout.
+  </Step>
+  
+  <Step title="Configure Layout Details">
+    Enter the layout name and configure routes:
+    
+    ```php
+    $layout_data = [
+        'name'          => 'Product Page',
+        'layout_route'  => [
+            [
+                'store_id' => 0,
+                'route'    => 'product/product'
+            ]
+        ],
+        'layout_module' => []
+    ];
+    
+    $this->model_design_layout->addLayout($layout_data);
+    ```
+  </Step>
+</Steps>
+
+### Layout Controller Example
+
+```php
+namespace Opencart\Admin\Controller\Design;
+
+class Layout extends \Opencart\System\Engine\Controller {
+    public function save(): void {
+        $this->load->model('design/layout');
+        
+        $post_info = [
+            'layout_id'     => 0,
+            'name'          => '',
+            'layout_route'  => [],
+            'layout_module' => [],
+        ];
+        
+        // Validate name length
+        if (!oc_validate_length($post_info['name'], 3, 64)) {
+            $json['error']['name'] = 'Name must be 3-64 characters';
+        }
+        
+        if (!$post_info['layout_id']) {
+            $layout_id = $this->model_design_layout->addLayout($post_info);
+        } else {
+            $this->model_design_layout->editLayout(
+                $post_info['layout_id'], 
+                $post_info
+            );
+        }
+    }
+}
+```
+
+## Route Configuration
+
+### Understanding Routes
+
+Routes determine which pages use which layouts. Common routes include:
+
+<Tabs>
+  <Tab title="Catalog Routes">
+    ```php
+    'common/home'           // Homepage
+    'product/product'       // Product detail page
+    'product/category'      // Category listing
+    'product/manufacturer'  // Manufacturer page
+    'product/search'        // Search results
+    ```
+  </Tab>
+  
+  <Tab title="Checkout Routes">
+    ```php
+    'checkout/checkout'     // Checkout page
+    'checkout/cart'         // Shopping cart
+    'checkout/success'      // Order success
+    ```
+  </Tab>
+  
+  <Tab title="Account Routes">
+    ```php
+    'account/account'       // Account dashboard
+    'account/login'         // Login page
+    'account/register'      // Registration
+    'account/order'         // Order history
+    ```
+  </Tab>
+  
+  <Tab title="Information Routes">
+    ```php
+    'information/information' // Information pages
+    'information/contact'     // Contact page
+    'cms/article'            // CMS articles
+    'cms/topic'              // CMS topics
+    ```
+  </Tab>
+</Tabs>
+
+### Adding Routes to Layouts
+
+```php
+// Add a route to a layout
+public function addRoute(int $layout_id, array $data): void {
+    $this->db->query(
+        "INSERT INTO `" . DB_PREFIX . "layout_route` 
+        SET `layout_id` = '" . (int)$layout_id . "', 
+        `store_id` = '" . (int)$data['store_id'] . "', 
+        `route` = '" . $this->db->escape($data['route']) . "'"
+    );
+}
+
+// Get routes for a layout
+public function getRoutes(int $layout_id): array {
+    $query = $this->db->query(
+        "SELECT * FROM `" . DB_PREFIX . "layout_route` 
+        WHERE `layout_id` = '" . (int)$layout_id . "'"
+    );
+    
+    return $query->rows;
+}
+```
+
+### Multi-Store Route Configuration
+
+<Note>
+  Each route can be configured per store, allowing different layouts for the same page across multiple stores.
+</Note>
+
+```php
+$layout_routes = [
+    [
+        'store_id' => 0,      // Default store
+        'route'    => 'product/product'
+    ],
+    [
+        'store_id' => 1,      // Second store
+        'route'    => 'product/product'
+    ]
+];
+```
+
+## Module Positioning
+
+### Available Positions
+
+Modules can be placed in the following positions:
+
+- **content_top** - Above main content
+- **content_bottom** - Below main content
+- **column_left** - Left sidebar
+- **column_right** - Right sidebar
+
+### Adding Modules to Layouts
+
+<Steps>
+  <Step title="Install Required Modules">
+    First, ensure modules are installed via **Extensions → Modules**.
+  </Step>
+  
+  <Step title="Edit Layout">
+    Navigate to **Design → Layouts** and edit the desired layout.
+  </Step>
+  
+  <Step title="Add Module Position">
+    Select a module, choose its position, and set the sort order:
+    
+    ```php
+    $layout_module_data = [
+        'code'       => 'opencart.featured.1', // Module code
+        'position'   => 'content_top',
+        'sort_order' => 1
+    ];
+    ```
+  </Step>
+</Steps>
+
+### Module Code Format
+
+Module codes follow this pattern:
+
+```php
+// Single-instance modules
+'extension.module_name'
+
+// Multi-instance modules
+'extension.module_name.module_id'
+
+// Example:
+'opencart.banner'          // Banner module
+'opencart.featured.1'      // Featured products #1
+'opencart.featured.2'      // Featured products #2
+```
+
+### Layout Module Management
+
+```php
+namespace Opencart\Admin\Model\Design;
+
+class Layout extends \Opencart\System\Engine\Model {
+    // Add module to layout
+    public function addModule(int $layout_id, array $data): void {
+        $this->db->query(
+            "INSERT INTO `" . DB_PREFIX . "layout_module` 
+            SET `layout_id` = '" . (int)$layout_id . "', 
+            `code` = '" . $this->db->escape($data['code']) . "', 
+            `position` = '" . $this->db->escape($data['position']) . "', 
+            `sort_order` = '" . (int)$data['sort_order'] . "'"
+        );
+    }
+    
+    // Get modules for layout
+    public function getModules(int $layout_id): array {
+        $query = $this->db->query(
+            "SELECT * FROM `" . DB_PREFIX . "layout_module` 
+            WHERE `layout_id` = '" . (int)$layout_id . "' 
+            ORDER BY `position` ASC, `sort_order` ASC"
+        );
+        
+        return $query->rows;
+    }
+    
+    // Delete all modules from layout
+    public function deleteModules(int $layout_id): void {
+        $this->db->query(
+            "DELETE FROM `" . DB_PREFIX . "layout_module` 
+            WHERE `layout_id` = '" . (int)$layout_id . "'"
+        );
+    }
+    
+    // Delete modules by code
+    public function deleteModulesByCode(string $code): void {
+        $this->db->query(
+            "DELETE FROM `" . DB_PREFIX . "layout_module` 
+            WHERE `code` = '" . $this->db->escape($code) . "' 
+            OR `code` LIKE '" . $this->db->escape($code . '.%') . "'"
+        );
+    }
+}
+```
+
+## Layout Assignment Examples
+
+### Homepage Layout
+
+```php
+$home_layout = [
+    'name' => 'Home',
+    'layout_route' => [
+        [
+            'store_id' => 0,
+            'route'    => 'common/home'
+        ]
+    ],
+    'layout_module' => [
+        [
+            'code'       => 'opencart.slideshow.1',
+            'position'   => 'content_top',
+            'sort_order' => 1
+        ],
+        [
+            'code'       => 'opencart.featured.1',
+            'position'   => 'content_top',
+            'sort_order' => 2
+        ],
+        [
+            'code'       => 'opencart.banner.1',
+            'position'   => 'content_bottom',
+            'sort_order' => 1
+        ]
+    ]
+];
+```
+
+### Product Page Layout
+
+```php
+$product_layout = [
+    'name' => 'Product',
+    'layout_route' => [
+        [
+            'store_id' => 0,
+            'route'    => 'product/product'
+        ]
+    ],
+    'layout_module' => [
+        [
+            'code'       => 'opencart.category',
+            'position'   => 'column_left',
+            'sort_order' => 1
+        ],
+        [
+            'code'       => 'opencart.bestseller',
+            'position'   => 'column_right',
+            'sort_order' => 1
+        ]
+    ]
+];
+```
+
+### Category Page Layout
+
+```php
+$category_layout = [
+    'name' => 'Category',
+    'layout_route' => [
+        [
+            'store_id' => 0,
+            'route'    => 'product/category'
+        ]
+    ],
+    'layout_module' => [
+        [
+            'code'       => 'opencart.category',
+            'position'   => 'column_left',
+            'sort_order' => 1
+        ],
+        [
+            'code'       => 'opencart.filter',
+            'position'   => 'column_left',
+            'sort_order' => 2
+        ]
+    ]
+];
+```
+
+## Layout Deletion Protection
+
+<Note>
+  OpenCart prevents deletion of layouts that are in use by products, categories, or other entities.
+</Note>
+
+```php
+public function delete(): void {
+    foreach ($selected as $layout_id) {
+        // Check if layout is default
+        if ($this->config->get('config_layout_id') == $layout_id) {
+            $json['error'] = 'Cannot delete default layout';
+        }
+        
+        // Check product usage
+        $product_total = $this->model_catalog_product
+            ->getTotalLayoutsByLayoutId($layout_id);
+        if ($product_total) {
+            $json['error'] = sprintf(
+                'Layout used by %d products', 
+                $product_total
+            );
+        }
+        
+        // Check category usage
+        $category_total = $this->model_catalog_category
+            ->getTotalLayoutsByLayoutId($layout_id);
+        if ($category_total) {
+            $json['error'] = sprintf(
+                'Layout used by %d categories', 
+                $category_total
+            );
+        }
+    }
+}
+```
+
+## Advanced Layout Techniques
+
+### Dynamic Module Loading
+
+```php
+// In your controller
+public function index(): void {
+    // Get layout for current route
+    $this->load->model('design/layout');
+    $layout_id = $this->model_design_layout->getLayout('product/product');
+    
+    // Load modules for this layout
+    $modules = $this->model_design_layout->getModules($layout_id);
+    
+    // Group by position
+    $data['content_top'] = [];
+    $data['content_bottom'] = [];
+    $data['column_left'] = [];
+    $data['column_right'] = [];
+    
+    foreach ($modules as $module) {
+        $part = explode('.', $module['code']);
+        
+        if (isset($part[2])) {
+            // Multi-instance module
+            $output = $this->load->controller(
+                'extension/' . $part[0] . '/module/' . $part[1],
+                ['module_id' => $part[2]]
+            );
+        } else {
+            // Single-instance module
+            $output = $this->load->controller(
+                'extension/' . $part[0] . '/module/' . $part[1]
+            );
+        }
+        
+        $data[$module['position']][] = $output;
+    }
+}
+```
+
+### Store-Specific Layouts
+
+```php
+// Get routes by store
+public function getRoutesByStoreId(int $store_id): array {
+    $query = $this->db->query(
+        "SELECT * FROM `" . DB_PREFIX . "layout_route` 
+        WHERE `store_id` = '" . (int)$store_id . "'"
+    );
+    
+    return $query->rows;
+}
+
+// Delete routes by store
+public function deleteRoutesByStoreId(int $store_id): void {
+    $this->db->query(
+        "DELETE FROM `" . DB_PREFIX . "layout_route` 
+        WHERE `store_id` = '" . (int)$store_id . "'"
+    );
+}
+```
+
+## Best Practices
+
+### 1. Logical Layout Names
+
+```php
+// ✅ Good
+'Home Page'
+'Product Detail'
+'Category Listing'
+'Checkout'
+
+// ❌ Bad
+'Layout 1'
+'Test'
+'New Layout'
+```
+
+### 2. Module Sort Order
+
+<Tip>
+  Use sort orders in increments of 10 to allow easy insertion of modules later.
+</Tip>
+
+```php
+[
+    ['code' => 'module1', 'sort_order' => 10],
+    ['code' => 'module2', 'sort_order' => 20],
+    ['code' => 'module3', 'sort_order' => 30]
+]
+```
+
+### 3. Route Specificity
+
+```php
+// More specific routes take precedence
+'product/category&path=20'  // Specific category
+'product/category'          // All categories
+'*'                         // Default/catch-all
+```
+
+### 4. Testing Layouts
+
+- Test on different devices (mobile, tablet, desktop)
+- Verify module positions render correctly
+- Check route assignments work as expected
+- Validate multi-store configurations
+
+## Troubleshooting
+
+### Modules Not Appearing
+
+<Steps>
+  <Step title="Verify Module Installation">
+    Check that the module is installed and enabled in **Extensions → Modules**.
+  </Step>
+  
+  <Step title="Check Layout Assignment">
+    Ensure the layout is assigned to the correct route for your current page.
+  </Step>
+  
+  <Step title="Confirm Module Position">
+    Verify the module code and position are correct in the layout configuration.
+  </Step>
+</Steps>
+
+### Wrong Layout Loading
+
+- Check route spelling and case sensitivity
+- Verify store_id matches current store
+- Look for conflicting route assignments
+- Clear cache after layout changes
+
+### Layout Changes Not Reflecting
+
+```bash
+# Clear system cache
+rm -rf system/storage/cache/*
+
+# Clear template cache
+rm -rf system/storage/cache/template/*
+```
+
+## Related Documentation
+
+- [Theme Management](/design/themes) - Configure store themes
+- [Banner Management](/design/banners) - Add banner modules
+- [Module Extensions](/extensions/modules) - Available modules

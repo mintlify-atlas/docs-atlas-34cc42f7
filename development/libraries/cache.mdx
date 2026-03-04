@@ -1,0 +1,84 @@
+---
+title: "Cache Library"
+description: "Optimize performance using OpenCart's cache library for data and query caching"
+---
+
+## Overview
+
+The Cache library improves performance by storing frequently accessed data in memory or files.
+
+## Cache Class
+
+From `system/library/cache.php:15`:
+
+```php
+namespace Opencart\System\Library;
+
+class Cache {
+    private object $adaptor;
+    
+    public function __construct(string $adaptor, int $expire = 3600) {
+        $class = 'Opencart\System\Library\Cache\\' . $adaptor;
+        
+        if (!class_exists($class)) {
+            throw new \Exception('Error: Could not load cache adaptor ' . $adaptor . ' cache!');
+        }
+        
+        $this->adaptor = new $class($expire);
+    }
+    
+    public function get(string $key) {
+        return $this->adaptor->get($key);
+    }
+    
+    public function set(string $key, $value, int $expire = 0): void {
+        $this->adaptor->set($key, $value, $expire);
+    }
+    
+    public function delete(string $key): void {
+        $this->adaptor->delete($key);
+    }
+}
+```
+
+## Usage
+
+### Caching Data
+
+```php
+// Check cache first
+$products = $this->cache->get('category.products.' . $category_id);
+
+if (!$products) {
+    // Cache miss - fetch from database
+    $products = $this->model_catalog_product->getProducts(['filter_category_id' => $category_id]);
+    
+    // Store in cache for 1 hour
+    $this->cache->set('category.products.' . $category_id, $products, 3600);
+}
+
+return $products;
+```
+
+### Clearing Cache
+
+```php
+$this->cache->delete('category.products.' . $category_id);
+```
+
+## Cache Adapters
+
+- **File**: File-based caching
+- **Mem**: Memcached
+- **Redis**: Redis server
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Review architecture
+  </Card>
+  <Card title="Database Library" icon="database" href="/development/libraries/database">
+    Database operations
+  </Card>
+</CardGroup>

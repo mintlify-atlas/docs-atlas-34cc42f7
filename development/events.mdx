@@ -1,0 +1,378 @@
+---
+title: "Event System"
+description: "Extend OpenCart functionality using the event system without modifying core files"
+---
+
+## Overview
+
+The **Event System** allows extensions to hook into core functionality without modifying files. Events are triggered at key points in controller, model, and view execution.
+
+## Event Class
+
+From `system/engine/event.php:17`:
+
+```php
+namespace Opencart\System\Engine;
+
+class Event {
+    protected \Opencart\System\Engine\Registry $registry;
+    protected array $data = [];
+    
+    public function register(string $trigger, \Opencart\System\Engine\Action $action, int $priority = 0): void {
+        $this->data[] = [
+            'trigger'  => $trigger,
+            'action'   => $action,
+            'priority' => $priority
+        ];
+        
+        // Sort by priority
+        $sort_order = [];
+        foreach ($this->data as $key => $value) {
+            $sort_order[$key] = $value['priority'];
+        }
+        array_multisort($sort_order, SORT_ASC, $this->data);
+    }
+    
+    public function trigger(string $event, array $args = []) {
+        foreach ($this->data as $value) {
+            if (preg_match('/^' . str_replace(['\*', '\?'], ['.*', '.'], preg_quote($value['trigger'], '/')) . '/', $event)) {
+                $value['action']->execute($this->registry, $args);
+            }
+        }
+        return '';
+    }
+    
+    public function unregister(string $trigger, string $route): void {
+        foreach ($this->data as $key => $value) {
+            if ($trigger == $value['trigger'] && $value['action']->getId() == $route) {
+                unset($this->data[$key]);
+            }
+        }
+    }
+}
+```
+
+## Event Types
+
+### Controller Events
+
+Triggered before/after controller execution:
+
+```
+controller/{route}/before
+controller/{route}/after
+```
+
+Example from `system/engine/loader.php:110`:
+```php
+$this->event->trigger('controller/' . $trigger . '/before', [&$route, &$args]);
+
+$output = $callable(...$args);
+
+$this->event->trigger('controller/' . $trigger . '/after', [&$route, &$args, &$output]);
+```
+
+### Model Events
+
+Triggered before/after model method calls:
+
+```
+model/{route}/before
+model/{route}/after
+```
+
+Example from `system/engine/loader.php:316`:
+```php
+$this->event->trigger('model/' . $trigger . '/before', [&$route, &$args]);
+
+$output = $callable(...$args);
+
+$this->event->trigger('model/' . $trigger . '/after', [&$route, &$args, &$output]);
+```
+
+### View Events
+
+Triggered before/after view rendering:
+
+```
+view/{route}/before
+view/{route}/after
+```
+
+Example from `system/engine/loader.php:183`:
+```php
+$this->event->trigger('view/' . $trigger . '/before', [&$route, &$data, &$code, &$output]);
+
+$output = $this->template->render($route, $data, $code);
+
+$this->event->trigger('view/' . $trigger . '/after', [&$route, &$data, &$output]);
+```
+
+## Registering Events
+
+### In Extension Install Method
+
+```php admin/controller/extension/myvendor/module/myextension.php
+public function install(): void {
+    $this->load->model('setting/event');
+    
+    // Add event
+    $this->model_setting_event->addEvent([
+        'code'        => 'myextension_product_view',
+        'description' => 'Add custom data to product page',
+        'trigger'     => 'catalog/view/product/product/before',
+        'action'      => 'extension/myvendor/module/myextension.productBefore',
+        'status'      => 1,
+        'sort_order'  => 1
+    ]);
+}
+
+public function uninstall(): void {
+    $this->load->model('setting/event');
+    
+    // Remove event
+    $this->model_setting_event->deleteEventByCode('myextension_product_view');
+}
+```
+
+### Event Handler Method
+
+```php catalog/controller/extension/myvendor/module/myextension.php
+public function productBefore(string &$route, array &$data, &$code, &$output): void {
+    // Modify view data
+    $data['custom_message'] = 'Added by extension!';
+    
+    // Add custom CSS
+    $this->document->addStyle('catalog/view/stylesheet/myextension.css');
+}
+```
+
+## Common Event Patterns
+
+### Modify Controller Output
+
+```php
+public function controllerAfter(string &$route, array &$args, &$output): void {
+    if ($route == 'checkout/checkout') {
+        // Modify checkout output
+        $output .= '<div>Custom content</div>';
+    }
+}
+```
+
+### Intercept Model Data
+
+```php
+public function modelAfter(string &$route, array &$args, &$output): void {
+    if ($route == 'catalog/product.getProduct') {
+        // Modify product data
+        if (!empty($output)) {
+            $output['custom_field'] = 'Custom value';
+        }
+    }
+}
+```
+
+### Add Data to Views
+
+```php
+public function viewBefore(string &$route, array &$data, &$code, &$output): void {
+    if ($route == 'product/product') {
+        // Add custom data to product page
+        $data['warranty_info'] = $this->config->get('myextension_warranty');
+    }
+}
+```
+
+## Event Priority
+
+Events with **lower** priority numbers execute first:
+
+```php
+$this->model_setting_event->addEvent([
+    'code'        => 'first_event',
+    'trigger'     => 'catalog/view/product/product/before',
+    'action'      => 'extension/vendor/module/first.handler',
+    'priority'    => 1,  // Executes first
+    'status'      => 1
+]);
+
+$this->model_setting_event->addEvent([
+    'code'        => 'second_event',
+    'trigger'     => 'catalog/view/product/product/before',
+    'action'      => 'extension/vendor/module/second.handler',
+    'priority'    => 10,  // Executes after
+    'status'      => 1
+]);
+```
+
+## Wildcard Events
+
+Use wildcards to match multiple routes:
+
+```php
+// Match all product routes
+$trigger = 'catalog/controller/product/*/before';
+
+// Match all view events
+$trigger = 'catalog/view/*/before';
+
+// Match specific pattern
+$trigger = 'catalog/controller/checkout/*/after';
+```
+
+## Practical Examples
+
+### Add Analytics Tracking
+
+```php
+public function install(): void {
+    $this->model_setting_event->addEvent([
+        'code'        => 'analytics_tracking',
+        'description' => 'Add analytics to all pages',
+        'trigger'     => 'catalog/view/*/after',
+        'action'      => 'extension/analytics/module/tracking.addCode',
+        'status'      => 1,
+        'sort_order'  => 100
+    ]);
+}
+
+public function addCode(string &$route, array &$data, &$output): void {
+    $tracking_code = '<script>/* Analytics code */</script>';
+    $output = str_replace('</body>', $tracking_code . '</body>', $output);
+}
+```
+
+### Modify Product Prices
+
+```php
+public function install(): void {
+    $this->model_setting_event->addEvent([
+        'code'        => 'price_modifier',
+        'trigger'     => 'catalog/model/catalog/product/getProduct/after',
+        'action'      => 'extension/pricing/module/modifier.modifyPrice',
+        'status'      => 1
+    ]);
+}
+
+public function modifyPrice(string &$route, array &$args, &$output): void {
+    if (!empty($output) && $this->customer->isLogged()) {
+        // Apply customer group discount
+        $discount = $this->config->get('price_modifier_discount');
+        $output['price'] = $output['price'] * (1 - $discount / 100);
+    }
+}
+```
+
+### Send Order Notification
+
+```php
+public function install(): void {
+    $this->model_setting_event->addEvent([
+        'code'        => 'order_notification',
+        'trigger'     => 'catalog/model/checkout/order/addOrder/after',
+        'action'      => 'extension/notify/module/order.sendNotification',
+        'status'      => 1
+    ]);
+}
+
+public function sendNotification(string &$route, array &$args, &$output): void {
+    // $output contains the order_id
+    $order_id = $output;
+    
+    // Load order data
+    $this->load->model('checkout/order');
+    $order_info = $this->model_checkout_order->getOrder($order_id);
+    
+    // Send notification
+    $this->sendEmailNotification($order_info);
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="Use Specific Triggers">
+Be as specific as possible to avoid unnecessary executions:
+
+```php
+// ✅ Specific
+'catalog/view/product/product/before'
+
+// ❌ Too broad (runs on every page)
+'catalog/view/*/before'
+```
+</Accordion>
+
+<Accordion title="Check Context">
+Verify you're in the right context before modifying data:
+
+```php
+public function viewBefore(string &$route, array &$data, &$code, &$output): void {
+    // Check the specific route
+    if ($route == 'product/product') {
+        // Only modify product pages
+        $data['custom'] = 'value';
+    }
+}
+```
+</Accordion>
+
+<Accordion title="Preserve Core Functionality">
+Don't break existing behavior:
+
+```php
+public function modelAfter(string &$route, array &$args, &$output): void {
+    // ✅ Add to output
+    if (!empty($output)) {
+        $output['extra_field'] = 'value';
+    }
+    
+    // ❌ Don't replace output
+    // $output = ['completely' => 'different'];
+}
+```
+</Accordion>
+
+<Accordion title="Clean Up on Uninstall">
+Always remove events when uninstalling:
+
+```php
+public function uninstall(): void {
+    $this->load->model('setting/event');
+    $this->model_setting_event->deleteEventByCode('myextension_*');
+}
+```
+</Accordion>
+</AccordionGroup>
+
+## Debugging Events
+
+Enable logging to debug event execution:
+
+```php
+public function myEventHandler(string &$route, array &$args, &$output): void {
+    $this->log->write('Event triggered: ' . $route);
+    $this->log->write('Args: ' . print_r($args, true));
+    $this->log->write('Output: ' . print_r($output, true));
+    
+    // Your event logic
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Modules" icon="cube" href="/development/creating-modules">
+    Build custom modules with events
+  </Card>
+  <Card title="Extension Structure" icon="folder-tree" href="/development/extension-structure">
+    Learn extension file organization
+  </Card>
+  <Card title="Payment Gateways" icon="credit-card" href="/development/payment-gateways">
+    Develop payment extensions
+  </Card>
+  <Card title="Shipping Methods" icon="truck" href="/development/shipping-methods">
+    Create shipping extensions
+  </Card>
+</CardGroup>

@@ -1,0 +1,261 @@
+---
+title: Coupon Management
+description: Create and manage discount coupons to drive sales and reward customers in OpenCart
+---
+
+Coupons are powerful marketing tools that allow you to offer discounts to your customers. You can create percentage-based or fixed-amount discounts, set usage limits, and restrict coupons to specific products or categories.
+
+## Accessing Coupons
+
+Navigate to **Marketing > Coupons** in your admin panel to view and manage all your discount coupons.
+
+## Creating a New Coupon
+
+<Steps>
+  <Step title="Open Coupon Form">
+    Click the **Add New** button on the Coupons page to open the coupon creation form.
+  </Step>
+  
+  <Step title="Enter Basic Information">
+    Fill in the required coupon details:
+    - **Coupon Name**: Internal name for your reference (3-128 characters)
+    - **Code**: The code customers will enter at checkout (3-20 characters)
+    - **Discount Type**: Choose between Fixed Amount or Percentage
+    - **Discount Value**: Enter the discount amount or percentage
+  </Step>
+  
+  <Step title="Configure Restrictions">
+    Set optional restrictions to control how the coupon can be used:
+    - **Minimum Order Total**: Require a minimum cart value
+    - **Logged In Customers Only**: Restrict to registered users
+    - **Free Shipping**: Enable free shipping with this coupon
+  </Step>
+  
+  <Step title="Set Usage Limits">
+    Control how many times the coupon can be used:
+    - **Total Uses**: Maximum number of times the coupon can be used overall
+    - **Uses Per Customer**: Limit how many times each customer can use it
+  </Step>
+  
+  <Step title="Define Validity Period">
+    Set the date range when the coupon is active:
+    - **Start Date**: When the coupon becomes valid
+    - **End Date**: When the coupon expires
+  </Step>
+  
+  <Step title="Select Products or Categories (Optional)">
+    Restrict the coupon to specific products or categories. Leave empty to apply to all products.
+  </Step>
+  
+  <Step title="Save and Enable">
+    Save the coupon and ensure **Status** is set to **Enabled** to make it active.
+  </Step>
+</Steps>
+
+## Coupon Types
+
+<Accordion title="Fixed Amount Discount">
+  Provides a specific dollar/currency amount off the order total.
+  
+  **Example**: Create a coupon with code `SAVE20` that gives $20 off any order over $100.
+  
+  ```php
+  // Controller: upload/admin/controller/marketing/coupon.php:119
+  $coupon_data = [
+    'name' => 'Save $20',
+    'code' => 'SAVE20',
+    'type' => 'F',  // Fixed amount
+    'discount' => 20.00,
+    'total' => 100.00,  // Minimum order total
+    'date_start' => '2024-01-01',
+    'date_end' => '2024-12-31'
+  ];
+  ```
+</Accordion>
+
+<Accordion title="Percentage Discount">
+  Provides a percentage off the order total or qualifying products.
+  
+  **Example**: Create a 15% off coupon for new customers.
+  
+  ```php
+  $coupon_data = [
+    'name' => '15% Off for New Customers',
+    'code' => 'WELCOME15',
+    'type' => 'P',  // Percentage
+    'discount' => 15.00,
+    'uses_customer' => 1,  // One use per customer
+    'date_start' => '2024-01-01',
+    'date_end' => '2024-12-31'
+  ];
+  ```
+</Accordion>
+
+<Accordion title="Product-Specific Coupons">
+  Restrict coupons to specific products or categories.
+  
+  **Example**: 10% off electronics category.
+  
+  ```php
+  $coupon_data = [
+    'name' => 'Electronics Sale',
+    'code' => 'TECH10',
+    'type' => 'P',
+    'discount' => 10.00,
+    'coupon_category' => [5, 12],  // Category IDs
+    'date_start' => '2024-01-01',
+    'date_end' => '2024-01-31'
+  ];
+  ```
+</Accordion>
+
+## Managing Coupons
+
+### Enabling or Disabling Coupons
+
+You can quickly enable or disable multiple coupons without deleting them:
+
+1. Select the coupons using the checkboxes
+2. Click **Enable** or **Disable** in the toolbar
+3. Disabled coupons cannot be used by customers but remain in your system
+
+<Note>
+  Disabling a coupon is useful for temporarily pausing a promotion without losing the coupon configuration.
+</Note>
+
+### Viewing Coupon Usage History
+
+Track how your coupons are being used:
+
+1. Click **Edit** on any coupon
+2. Navigate to the **History** tab
+3. View details including:
+   - Order ID
+   - Customer name
+   - Discount amount applied
+   - Date used
+
+<Tip>
+  Monitor coupon history regularly to identify your most effective promotions and detect potential abuse.
+</Tip>
+
+## Practical Examples
+
+### Example 1: Flash Sale Coupon
+
+Create a 24-hour flash sale with 25% off:
+
+- **Name**: "24-Hour Flash Sale"
+- **Code**: "FLASH25"
+- **Type**: Percentage
+- **Discount**: 25%
+- **Start Date**: Today at 00:00
+- **End Date**: Today at 23:59
+- **Uses Total**: 100 (create urgency)
+- **Status**: Enabled
+
+### Example 2: Free Shipping Coupon
+
+Offer free shipping on orders over $50:
+
+- **Name**: "Free Shipping"
+- **Code**: "FREESHIP"
+- **Type**: Fixed Amount
+- **Discount**: 0.00
+- **Minimum Total**: 50.00
+- **Free Shipping**: Yes
+- **Status**: Enabled
+
+### Example 3: Loyalty Reward Coupon
+
+Reward repeat customers with $10 off:
+
+- **Name**: "Loyal Customer Reward"
+- **Code**: "LOYAL10"
+- **Type**: Fixed Amount
+- **Discount**: 10.00
+- **Logged In Only**: Yes
+- **Uses Per Customer**: 1
+- **Status**: Enabled
+
+<Tip>
+  Generate unique coupon codes for each customer by using dynamic codes with the customer ID or email hash.
+</Tip>
+
+## Best Practices
+
+1. **Clear Naming**: Use descriptive internal names to easily identify coupons
+2. **Simple Codes**: Create memorable coupon codes that are easy to type
+3. **Set Expiration Dates**: Always define start and end dates to create urgency
+4. **Monitor Usage**: Review the history tab to track performance
+5. **Limit Abuse**: Use per-customer limits to prevent coupon abuse
+6. **Test Before Launch**: Create a test order to verify the coupon works correctly
+
+<Note>
+  Coupon codes are case-sensitive in OpenCart. Consider using uppercase letters for consistency.
+</Note>
+
+## Technical Reference
+
+### Database Structure
+
+Coupons are stored in the `oc_coupon` table with the following key fields:
+
+- `coupon_id`: Primary key
+- `name`: Internal coupon name
+- `code`: Customer-facing coupon code
+- `type`: 'F' for fixed amount, 'P' for percentage
+- `discount`: Discount value
+- `total`: Minimum order total required
+- `logged`: Require customer login (0 or 1)
+- `shipping`: Enable free shipping (0 or 1)
+- `date_start`: Validity start date
+- `date_end`: Validity end date
+- `uses_total`: Maximum total uses
+- `uses_customer`: Maximum uses per customer
+- `status`: Coupon status (0 or 1)
+
+### Model Methods
+
+Key methods in `/upload/admin/model/marketing/coupon.php`:
+
+- `addCoupon($data)`: Create new coupon
+- `editCoupon($coupon_id, $data)`: Update existing coupon
+- `deleteCoupon($coupon_id)`: Remove coupon
+- `getCoupon($coupon_id)`: Retrieve coupon details
+- `getCouponByCode($code)`: Find coupon by code
+- `getHistories($coupon_id)`: Get usage history
+
+### Controller Location
+
+- **Admin Controller**: `/upload/admin/controller/marketing/coupon.php`
+- **Admin Model**: `/upload/admin/model/marketing/coupon.php`
+
+## Troubleshooting
+
+<Accordion title="Coupon code not working at checkout">
+  **Possible causes**:
+  - Coupon is disabled (check Status field)
+  - Current date is outside the validity period
+  - Minimum order total not met
+  - Usage limit reached
+  - Customer not logged in (if required)
+  - Products in cart are excluded from the coupon
+  
+  **Solution**: Review all restrictions and ensure they are met.
+</Accordion>
+
+<Accordion title="Cannot delete a coupon">
+  **Cause**: The coupon may have historical usage data.
+  
+  **Solution**: Disable the coupon instead of deleting it to preserve history records.
+</Accordion>
+
+<Accordion title="Coupon gives wrong discount amount">
+  **Check**:
+  - Verify the Type field (Fixed vs Percentage)
+  - Ensure discount value is entered correctly
+  - Check if product/category restrictions are applied
+  
+  **Solution**: Edit the coupon and verify all settings.
+</Accordion>

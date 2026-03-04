@@ -1,0 +1,412 @@
+---
+title: "Localization Settings"
+description: "Configure multi-language, multi-currency, and regional settings for your global store"
+---
+
+## Overview
+
+OpenCart's localization features enable you to sell globally with support for multiple languages, currencies, tax zones, and regional preferences. Configure these settings to provide a localized experience for customers worldwide.
+
+<Note>
+Access localization settings from **System → Localization** in the admin panel.
+</Note>
+
+## Languages
+
+### Managing Languages
+
+Add multiple languages to your store for international customers.
+
+```php
+// From language.php controller
+namespace Opencart\Admin\Controller\Localisation;
+
+class Language extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->model('localisation/language');
+        $languages = $this->model_localisation_language->getLanguages();
+    }
+}
+```
+
+<Steps>
+  <Step title="Add a Language">
+    Navigate to **System → Localization → Languages** and click **Add New**.
+    
+    **Required Fields:**
+    - Language Name (e.g., "English", "Español")
+    - Code (ISO 639-1, e.g., "en", "es")
+    - Locale (e.g., "en-US", "es-ES")
+    - Image/Flag icon
+    - Sort Order
+    - Status (Enabled/Disabled)
+  </Step>
+  
+  <Step title="Install Language Pack">
+    Download language extensions from the OpenCart Marketplace and install via **Extensions → Installer**.
+  </Step>
+  
+  <Step title="Set Default Language">
+    Go to **System → Settings** and select the default language for your store.
+  </Step>
+</Steps>
+
+### Language Code Structure
+
+```php
+// Language files location
+/catalog/language/{language_code}/
+/admin/language/{language_code}/
+
+// Example: English translations
+/catalog/language/en-gb/common/header.php
+/catalog/language/en-gb/product/product.php
+```
+
+<Accordion title="Supported Language Fields">
+**Name** - Display name shown to customers
+
+**Code** - Two-letter ISO code (en, es, fr, de)
+
+**Locale** - Full locale identifier (en-US, en-GB, es-ES)
+
+**Image** - Flag icon for language switcher
+
+**Directory** - Folder name in language directory
+
+**Status** - Enable/disable language
+
+**Sort Order** - Display order in language selector
+</Accordion>
+
+## Currencies
+
+### Managing Currencies
+
+Support multiple currencies with automatic or manual exchange rates.
+
+```php
+// From currency.php controller
+$this->load->model('localisation/currency');
+$currencies = $this->model_localisation_currency->getCurrencies();
+```
+
+<Steps>
+  <Step title="Add Currency">
+    Navigate to **System → Localization → Currencies** and click **Add New**.
+    
+    ```php
+    // Currency fields
+    $data = [
+        'title' => 'US Dollar',
+        'code' => 'USD',
+        'symbol_left' => '$',
+        'symbol_right' => '',
+        'decimal_place' => '2',
+        'value' => '1.00000000',
+        'status' => 1
+    ];
+    ```
+  </Step>
+  
+  <Step title="Configure Exchange Rates">
+    Set the exchange rate relative to your default currency.
+    
+    **Auto-update:** Install currency extension (ECB, Fixer.io) to automatically update rates.
+  </Step>
+  
+  <Step title="Set Default Currency">
+    Go to **System → Settings** and select the default currency for pricing.
+  </Step>
+</Steps>
+
+### Currency Auto-Update
+
+OpenCart includes extensions for automatic exchange rate updates.
+
+<Tabs>
+  <Tab title="European Central Bank (ECB)">
+    ```php
+    // extension/opencart/catalog/controller/currency/ecb.php
+    namespace Opencart\Catalog\Controller\Extension\Opencart\Currency;
+    
+    class ECB extends \Opencart\System\Engine\Controller {
+        public function currency(array $default = []): array {
+            $curl = curl_init();
+            curl_setopt($curl, CURLOPT_URL, 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml');
+            // Parse XML and update rates
+        }
+    }
+    ```
+    
+    Free service from European Central Bank, updated daily.
+  </Tab>
+  
+  <Tab title="Fixer.io">
+    ```php
+    // extension/opencart/catalog/controller/currency/fixer.php
+    // Requires API key from https://fixer.io
+    $api_key = $this->config->get('currency_fixer_api');
+    $url = 'http://data.fixer.io/api/latest?access_key=' . $api_key;
+    ```
+    
+    Paid service with free tier, supports 170+ currencies.
+  </Tab>
+</Tabs>
+
+<Note>
+Set up a cron job to run `cron/currency` route daily for automatic rate updates.
+</Note>
+
+## Countries and Zones
+
+### Countries
+
+Manage the list of countries available for shipping and billing addresses.
+
+```php
+// From country.php model
+public function getCountries(array $data = []): array {
+    $sql = "SELECT * FROM `" . DB_PREFIX . "country`";
+    
+    if (!empty($data['filter_name'])) {
+        $sql .= " WHERE `name` LIKE " . $this->db->escape('%' . $data['filter_name'] . '%');
+    }
+    
+    $sql .= " ORDER BY `name` ASC";
+    
+    return $this->db->query($sql)->rows;
+}
+```
+
+<Accordion title="Country Configuration">
+**Country Name** - Full country name
+
+**ISO Code 2** - Two-letter code (US, GB, CA)
+
+**ISO Code 3** - Three-letter code (USA, GBR, CAN)
+
+**Address Format** - Template for formatting addresses
+
+**Postcode Required** - Mandate postal code in addresses
+
+**Status** - Enable/disable country for checkout
+</Accordion>
+
+### Zones (States/Provinces)
+
+Define regions within countries for tax and shipping calculations.
+
+```php
+// From zone.php model
+public function getZonesByCountryId(int $country_id): array {
+    $query = $this->db->query(
+        "SELECT * FROM `" . DB_PREFIX . "zone` 
+        WHERE `country_id` = '" . (int)$country_id . "' 
+        AND `status` = '1' 
+        ORDER BY `name`"
+    );
+    
+    return $query->rows;
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="United States" icon="flag-usa">
+    50 states + territories (DC, PR, GU, etc.)
+  </Card>
+  
+  <Card title="Canada" icon="flag">
+    13 provinces and territories
+  </Card>
+  
+  <Card title="Australia" icon="flag">
+    8 states and territories
+  </Card>
+  
+  <Card title="Custom Zones" icon="plus">
+    Add custom regions for any country
+  </Card>
+</CardGroup>
+
+## Geo Zones
+
+### Creating Geo Zones
+
+Geo zones are groups of countries/regions used for targeted shipping and tax rules.
+
+<Steps>
+  <Step title="Create Geo Zone">
+    Navigate to **System → Localization → Geo Zones** and add a new zone.
+    
+    Example: "European Union", "North America", "Asia Pacific"
+  </Step>
+  
+  <Step title="Add Countries/Zones">
+    Select specific countries or regions to include in the geo zone.
+    
+    ```php
+    // Geo zone structure
+    $geo_zone = [
+        'name' => 'European Union',
+        'description' => 'EU member countries',
+        'countries' => [
+            ['country_id' => 81, 'zone_id' => 0], // Germany (all zones)
+            ['country_id' => 74, 'zone_id' => 0], // France (all zones)
+            // ... more countries
+        ]
+    ];
+    ```
+  </Step>
+  
+  <Step title="Apply to Tax/Shipping">
+    Use geo zones in tax classes and shipping method restrictions.
+  </Step>
+</Steps>
+
+### Use Cases for Geo Zones
+
+<Accordion title="VAT Tax Zones">
+Create a geo zone for EU countries to apply VAT tax rates correctly.
+</Accordion>
+
+<Accordion title="Free Shipping Zones">
+Offer free shipping for specific regions by creating a geo zone and configuring shipping methods.
+</Accordion>
+
+<Accordion title="Payment Restrictions">
+Limit payment methods to specific regions based on geo zones.
+</Accordion>
+
+## Tax Configuration
+
+### Tax Classes
+
+Define tax categories for products (e.g., "Taxable Goods", "Digital Services").
+
+```php
+// Tax class structure
+$tax_class = [
+    'title' => 'Taxable Goods',
+    'description' => 'Standard VAT rate',
+    'tax_rules' => [
+        [
+            'tax_rate_id' => 87,  // 20% VAT
+            'based' => 'shipping', // shipping, payment, or store
+            'priority' => 1
+        ]
+    ]
+];
+```
+
+### Tax Rates
+
+Set up tax rates for different regions.
+
+<Steps>
+  <Step title="Create Tax Rate">
+    Navigate to **System → Localization → Tax Rates**.
+    
+    **Fields:**
+    - Tax Name (e.g., "VAT", "GST", "Sales Tax")
+    - Tax Rate (percentage)
+    - Type (Percentage or Fixed)
+    - Geo Zone (where to apply)
+  </Step>
+  
+  <Step title="Link to Tax Class">
+    Add tax rates to tax classes via **Tax Classes** screen.
+  </Step>
+  
+  <Step title="Assign to Products">
+    Select tax class when creating/editing products.
+  </Step>
+</Steps>
+
+<Warning>
+**Tax Calculation Based On:**
+- Shipping Address (recommended for most regions)
+- Payment Address
+- Store Address
+
+Ensure this matches your local tax regulations.
+</Warning>
+
+## Length and Weight Classes
+
+### Length Classes
+
+Define units of measurement for product dimensions.
+
+| Length Class | Value | Common Use |
+|--------------|-------|------------|
+| Centimeter | 1.00000 | Base unit |
+| Millimeter | 10.00000 | Small items |
+| Inch | 0.39370 | US/UK markets |
+| Meter | 0.01000 | Large items |
+
+### Weight Classes
+
+Define units of measurement for product weight.
+
+| Weight Class | Value | Common Use |
+|--------------|-------|------------|
+| Kilogram | 1.00000 | Base unit |
+| Gram | 1000.00000 | Small items |
+| Pound | 2.20462 | US/UK markets |
+| Ounce | 35.27400 | Lightweight items |
+
+<Note>
+Set one unit as the base (value = 1.00000) and calculate others relative to it.
+</Note>
+
+## Stock Status
+
+### Managing Stock Statuses
+
+Define stock availability messages shown to customers.
+
+```php
+// Common stock statuses
+$statuses = [
+    'In Stock',
+    'Out of Stock',
+    'Pre-Order',
+    '2-3 Days',
+    'Discontinued'
+];
+```
+
+<CardGroup cols={2}>
+  <Card title="In Stock" icon="check-circle">
+    Product available for immediate shipment
+  </Card>
+  
+  <Card title="Out of Stock" icon="times-circle">
+    Product currently unavailable
+  </Card>
+  
+  <Card title="Pre-Order" icon="clock">
+    Accept orders for upcoming inventory
+  </Card>
+  
+  <Card title="Backorder" icon="truck">
+    Temporarily out, ships when restocked
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Store Settings" icon="gear" href="/configuration/settings">
+    Configure general store settings
+  </Card>
+  
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Install currency and language extensions
+  </Card>
+  
+  <Card title="SEO" icon="search" href="/design/seo">
+    Multi-language SEO configuration
+  </Card>
+</CardGroup>

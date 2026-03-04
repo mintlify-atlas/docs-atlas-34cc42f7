@@ -1,0 +1,508 @@
+---
+title: "System Configuration"
+description: "System maintenance, tools, and advanced configuration options for OpenCart"
+---
+
+## Overview
+
+OpenCart's system configuration section provides tools for maintaining your store, managing logs, performing backups, and handling system-level tasks. Regular maintenance ensures optimal performance and security.
+
+<Note>
+Access system tools from **System** menu in the admin panel.
+</Note>
+
+## System Tools
+
+### Backup and Restore
+
+Create backups of your store's database to protect against data loss.
+
+```php
+// From backup.php controller (admin/controller/tool/backup.php)
+namespace Opencart\Admin\Controller\Tool;
+
+class Backup extends \Opencart\System\Engine\Controller {
+    public function download(): void {
+        $this->load->model('tool/backup');
+        
+        // Generate SQL backup
+        $backup = $this->model_tool_backup->backup($this->request->post['table']);
+        
+        // Set headers for download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . date('Y-m-d-H-i-s', time()) . '.sql"');
+        header('Expires: 0');
+        
+        echo $backup;
+    }
+}
+```
+
+<Steps>
+  <Step title="Select Tables">
+    Navigate to **System → Maintenance → Backup / Restore**.
+    
+    Select tables to backup:
+    - All tables (recommended for full backup)
+    - Specific tables (for partial backup)
+  </Step>
+  
+  <Step title="Download Backup">
+    Click **Backup** to download a .sql file containing your data.
+    
+    <Tip>
+    Backups are downloaded directly to your browser - store them securely off-site.
+    </Tip>
+  </Step>
+  
+  <Step title="Restore (if needed)">
+    Use phpMyAdmin or MySQL command line to restore from backup:
+    
+    ```bash
+    mysql -u username -p database_name < backup-2024-01-15.sql
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+**Backup Best Practices:**
+- Create backups before updates or major changes
+- Store backups in multiple locations (local + cloud)
+- Test restore procedures periodically
+- Include both database AND files (upload/ directory)
+- Automate daily backups via cron job
+</Warning>
+
+### Error Logs
+
+Monitor and troubleshoot errors in your store.
+
+```php
+// From log.php controller (admin/controller/tool/log.php)
+namespace Opencart\Admin\Controller\Tool;
+
+class Log extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $file = DIR_LOGS . 'error.log';
+        
+        if (file_exists($file)) {
+            $data['log'] = file_get_contents($file, FILE_USE_INCLUDE_PATH, null);
+            $data['size'] = filesize($file);
+        }
+    }
+}
+```
+
+<Accordion title="Viewing Error Logs">
+Navigate to **System → Maintenance → Error Logs** to view recent errors and warnings.
+
+Log location: `system/storage/logs/error.log`
+</Accordion>
+
+<Accordion title="Clearing Logs">
+Click **Clear** to delete the error log file. Recommended when log file becomes very large (>10MB).
+</Accordion>
+
+<Accordion title="Common Errors">
+**PHP Notices:** Minor issues, usually safe to ignore  
+**Warnings:** Potential problems that should be investigated  
+**Fatal Errors:** Critical issues that stop execution  
+**Database Errors:** Connection or query problems
+</Accordion>
+
+### Upload Management
+
+Manage file uploads and track upload history.
+
+```php
+// From upload.php controller (admin/controller/tool/upload.php)
+namespace Opencart\Admin\Controller\Tool;
+
+class Upload extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->model('tool/upload');
+        
+        // Get all uploads
+        $filter_data = [
+            'start' => ($page - 1) * $this->config->get('config_pagination_admin'),
+            'limit' => $this->config->get('config_pagination_admin')
+        ];
+        
+        $uploads = $this->model_tool_upload->getUploads($filter_data);
+    }
+}
+```
+
+<Note>
+View uploaded files at **System → Maintenance → Uploads**. This includes files uploaded through product options or customer accounts.
+</Note>
+
+## Developer Tools
+
+### Modification System
+
+OpenCart's OCMOD system allows extensions to modify core files without directly editing them.
+
+```xml
+<!-- Example modification XML -->
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+    <name>My Custom Modification</name>
+    <code>my_custom_mod</code>
+    <version>1.0</version>
+    <author>Your Name</author>
+    
+    <file path="catalog/controller/product/product.php">
+        <operation>
+            <search><![CDATA[
+                $data['products'] = [];
+            ]]></search>
+            <add position="after"><![CDATA[
+                // Your custom code here
+            ]]></add>
+        </operation>
+    </file>
+</modification>
+```
+
+<Steps>
+  <Step title="Install Modification">
+    Upload modification XML via **Extensions → Installer** or place in `system/storage/modification/` directory.
+  </Step>
+  
+  <Step title="Refresh Modifications">
+    Navigate to **Extensions → Modifications** and click **Refresh** to apply changes.
+  </Step>
+  
+  <Step title="Clear Cache">
+    Clear modification cache to see results immediately.
+  </Step>
+</Steps>
+
+### Theme Editor
+
+Edit theme templates directly from the admin panel.
+
+<Warning>
+Theme editing in production is risky. Always:
+1. Create backups before editing
+2. Test changes in development environment
+3. Use version control for theme files
+</Warning>
+
+### Event System
+
+View and manage system events (hooks).
+
+```php
+// From event.php model (admin/model/setting/event.php)
+namespace Opencart\Admin\Model\Setting;
+
+class Event extends \Opencart\System\Engine\Model {
+    public function getEvents(array $data = []): array {
+        $sql = "SELECT * FROM `" . DB_PREFIX . "event`";
+        
+        if (!empty($data['filter_code'])) {
+            $sql .= " WHERE `code` = '" . $this->db->escape($data['filter_code']) . "'";
+        }
+        
+        $sql .= " ORDER BY `sort_order` ASC";
+        
+        return $this->db->query($sql)->rows;
+    }
+}
+```
+
+**Event Fields:**
+- **Code**: Unique identifier for the event
+- **Trigger**: System trigger point (e.g., `catalog/model/checkout/order/addOrder/after`)
+- **Action**: Route to call when triggered
+- **Status**: Enable/disable event
+- **Sort Order**: Execution priority
+
+## Cron Jobs
+
+### Setting Up Automated Tasks
+
+Configure cron jobs for scheduled maintenance and updates.
+
+```bash
+# Example crontab entries
+
+# Currency update (daily at 3 AM)
+0 3 * * * /usr/bin/php /path/to/opencart/admin/cli_currency.php
+
+# GDPR data cleanup (weekly on Sunday at 2 AM)
+0 2 * * 0 /usr/bin/php /path/to/opencart/admin/cli_gdpr.php
+
+# Sitemap generation (daily at 4 AM)
+0 4 * * * /usr/bin/php /path/to/opencart/admin/cli_sitemap.php
+```
+
+<Tabs>
+  <Tab title="Currency Updates">
+    ```php
+    // catalog/controller/cron/currency.php
+    namespace Opencart\Catalog\Controller\Cron;
+    
+    class Currency extends \Opencart\System\Engine\Controller {
+        public function index(int $cron_id, string $code, string $cycle, string $date_added, string $date_modified): void {
+            $this->load->model('setting/extension');
+            
+            $extensions = $this->model_setting_extension->getExtensionsByType('currency');
+            
+            foreach ($extensions as $extension) {
+                $this->load->controller('extension/' . $extension['extension'] . '/currency/' . $extension['code']);
+            }
+        }
+    }
+    ```
+    
+    Updates exchange rates from configured currency services.
+  </Tab>
+  
+  <Tab title="GDPR Cleanup">
+    ```php
+    // catalog/controller/cron/gdpr.php
+    public function index(): void {
+        $this->load->model('account/gdpr');
+        
+        // Delete customer data older than retention period
+        $this->model_account_gdpr->deleteGdpr();
+    }
+    ```
+    
+    Removes customer data after GDPR retention period expires.
+  </Tab>
+  
+  <Tab title="Subscription Renewals">
+    ```php
+    // catalog/controller/cron/subscription.php
+    public function index(): void {
+        $this->load->model('checkout/subscription');
+        
+        // Process recurring subscriptions
+        $subscriptions = $this->model_checkout_subscription->getSubscriptions();
+        
+        foreach ($subscriptions as $subscription) {
+            if ($subscription['date_next'] <= date('Y-m-d')) {
+                // Process payment and update next billing date
+            }
+        }
+    }
+    ```
+    
+    Processes recurring subscription payments.
+  </Tab>
+</Tabs>
+
+## Cache Management
+
+### Clearing Cache
+
+Different cache types require different clearing methods.
+
+<CardGroup cols={2}>
+  <Card title="Modification Cache" icon="file-code">
+    **Location:** `system/storage/modification/`
+    
+    Clear via **Extensions → Modifications → Refresh**
+  </Card>
+  
+  <Card title="Image Cache" icon="image">
+    **Location:** `image/cache/`
+    
+    Manually delete folder contents or use FTP
+  </Card>
+  
+  <Card title="System Cache" icon="database">
+    **Location:** `system/storage/cache/`
+    
+    Delete folder contents via FTP or file manager
+  </Card>
+  
+  <Card title="Template Cache" icon="file">
+    **Location:** Managed by Twig
+    
+    Deleted automatically on theme changes
+  </Card>
+</CardGroup>
+
+```bash
+# Clear all caches via command line
+cd /path/to/opencart
+
+# Clear modification cache
+rm -rf system/storage/modification/*
+
+# Clear image cache
+rm -rf image/cache/*
+
+# Clear system cache
+rm -rf system/storage/cache/*
+```
+
+## Database Maintenance
+
+### Optimizing Tables
+
+Regularly optimize database tables for better performance.
+
+```sql
+-- Optimize all OpenCart tables
+OPTIMIZE TABLE 
+    oc_product, 
+    oc_product_description, 
+    oc_category, 
+    oc_category_description,
+    oc_customer,
+    oc_order,
+    oc_order_product,
+    oc_session;
+    
+-- Check table status
+SHOW TABLE STATUS WHERE Name LIKE 'oc_%';
+```
+
+<Note>
+Run optimization during low-traffic periods as it may temporarily lock tables.
+</Note>
+
+### Cleaning Old Data
+
+```sql
+-- Delete old customer sessions (older than 7 days)
+DELETE FROM oc_session 
+WHERE expire < DATE_SUB(NOW(), INTERVAL 7 DAY);
+
+-- Delete old customer activities (older than 90 days)
+DELETE FROM oc_customer_activity 
+WHERE date_added < DATE_SUB(NOW(), INTERVAL 90 DAY);
+
+-- Delete old customer searches (older than 30 days)
+DELETE FROM oc_customer_search 
+WHERE date_added < DATE_SUB(NOW(), INTERVAL 30 DAY);
+```
+
+## Performance Monitoring
+
+### Key Metrics to Track
+
+<Accordion title="Page Load Time">
+Monitor average page load times. Target: less than 2 seconds for category/product pages.
+
+Tools: Google PageSpeed Insights, GTmetrix
+</Accordion>
+
+<Accordion title="Database Query Time">
+Slow queries can impact performance. Enable query logging in development.
+
+```php
+// In config.php (development only)
+define('DB_QUERY_LOGGING', true);
+```
+</Accordion>
+
+<Accordion title="Error Rate">
+Monitor error.log file size and frequency. Increasing errors indicate issues.
+</Accordion>
+
+<Accordion title="Disk Space">
+Ensure adequate disk space for:
+- Product images and uploads
+- Log files
+- Database growth
+- Session storage
+</Accordion>
+
+## System Requirements
+
+### Server Requirements
+
+**Minimum Requirements:**
+```yaml
+PHP: >= 8.0.2
+MySQL: >= 5.7 or MariaDB >= 10.2
+Disk Space: 500MB minimum
+Memory: 128MB minimum (256MB recommended)
+```
+
+**Required PHP Extensions:**
+```php
+// From composer.json and INSTALL.md
+- curl
+- gd or imagick
+- mysqli or pdo_mysql
+- zip
+- openssl
+- json
+- xml
+- mbstring
+```
+
+### Checking PHP Configuration
+
+```php
+<?php
+// Create a phpinfo.php file in your web root
+phpinfo();
+
+// Check specific settings
+echo 'PHP Version: ' . PHP_VERSION . "\n";
+echo 'Memory Limit: ' . ini_get('memory_limit') . "\n";
+echo 'Upload Max: ' . ini_get('upload_max_filesize') . "\n";
+echo 'Post Max: ' . ini_get('post_max_size') . "\n";
+echo 'Max Execution Time: ' . ini_get('max_execution_time') . "\n";
+```
+
+<Warning>
+Delete phpinfo.php after checking - it exposes server configuration details.
+</Warning>
+
+## Security Hardening
+
+<CardGroup cols={2}>
+  <Card title="File Permissions" icon="lock">
+    Set correct permissions:
+    - Directories: 755
+    - Files: 644
+    - config.php: 444 (read-only)
+  </Card>
+  
+  <Card title="Disable Directory Listing" icon="eye-slash">
+    Add to .htaccess:
+    ```apache
+    Options -Indexes
+    ```
+  </Card>
+  
+  <Card title="Move Admin Directory" icon="folder-tree">
+    Rename `/admin` to something unique:
+    ```bash
+    mv admin my-secure-admin-panel
+    ```
+  </Card>
+  
+  <Card title="SSL Certificate" icon="shield-halved">
+    Use HTTPS for all traffic:
+    - Install SSL certificate
+    - Force HTTPS in .htaccess
+    - Update store URLs in settings
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Store Settings" icon="gear" href="/configuration/settings">
+    Configure general store settings
+  </Card>
+  
+  <Card title="Development Setup" icon="code" href="/development/setup">
+    Set up local development environment
+  </Card>
+  
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Install system extensions
+  </Card>
+</CardGroup>

@@ -1,0 +1,475 @@
+---
+title: Order Management
+description: Process and manage customer orders in OpenCart including order status, invoices, and shipping
+---
+
+The Order Management system in OpenCart provides comprehensive tools for processing customer orders, managing order status, generating invoices, and handling shipping.
+
+## Order Overview
+
+Each order in OpenCart contains:
+
+- **Customer Information** - Name, email, phone, account details
+- **Order Products** - Items purchased with quantities and prices
+- **Addresses** - Billing and shipping addresses
+- **Payment Information** - Payment method and status
+- **Shipping Information** - Shipping method and tracking
+- **Order Totals** - Subtotal, taxes, discounts, and grand total
+- **Order Status** - Current order state
+- **Order History** - Status changes and comments
+
+## Order Filters
+
+Find orders quickly using comprehensive filters:
+
+### Available Filters
+
+```php
+$filter_data = [
+    'filter_order_id'           => 12345,
+    'filter_customer_id'        => 100,
+    'filter_customer'           => 'John Smith',
+    'filter_store_id'           => 0,
+    'filter_order_status'       => 'Processing',
+    'filter_order_status_id'    => 2,
+    'filter_total'              => '100.00',
+    'filter_date_from'          => '2026-01-01',
+    'filter_date_to'            => '2026-03-31',
+    'filter_date_modified_from' => '2026-01-01',
+    'filter_date_modified_to'   => '2026-03-31'
+];
+```
+
+<Note>
+Use date filters to analyze orders by time period. The `date_from`/`date_to` filters search by order creation date, while `date_modified` filters search by last modification date.
+</Note>
+
+## Order Structure
+
+### Order Information
+
+```php
+$order_info = [
+    'order_id'              => 12345,
+    'invoice_no'            => 100,
+    'invoice_prefix'        => 'INV-2026-',
+    'store_id'              => 0,
+    'store_name'            => 'Your Store',
+    'store_url'             => 'https://yourstore.com/',
+    'customer_id'           => 100,
+    'customer_group_id'     => 1,
+    'firstname'             => 'John',
+    'lastname'              => 'Smith',
+    'email'                 => 'john@example.com',
+    'telephone'             => '+1-555-0123',
+    'language_code'         => 'en-gb',
+    'currency_code'         => 'USD',
+    'currency_value'        => 1.0000,
+    'order_status_id'       => 2,
+    'order_status'          => 'Processing',
+    'date_added'            => '2026-03-04 10:30:00',
+    'date_modified'         => '2026-03-04 11:00:00'
+];
+```
+
+### Order Products
+
+```php
+$order_products = [
+    [
+        'order_product_id' => 1,
+        'product_id'       => 42,
+        'name'             => 'MacBook Pro 16"',
+        'model'            => 'MBP-16-2024',
+        'quantity'         => 1,
+        'price'            => 2399.00,
+        'tax'              => 191.92,
+        'total'            => 2399.00,
+        'reward'           => 100
+    ]
+];
+```
+
+### Product Options
+
+```php
+$order_options = [
+    [
+        'order_option_id'       => 1,
+        'order_product_id'      => 1,
+        'product_option_id'     => 5,
+        'product_option_value_id' => 23,
+        'name'                  => 'Color',
+        'value'                 => 'Space Gray',
+        'type'                  => 'select'
+    ]
+];
+```
+
+## Payment Information
+
+### Payment Address
+
+```php
+$payment_address = [
+    'payment_address_id' => 123,
+    'payment_firstname'  => 'John',
+    'payment_lastname'   => 'Smith',
+    'payment_company'    => 'Acme Corp',
+    'payment_address_1'  => '123 Main Street',
+    'payment_address_2'  => 'Suite 100',
+    'payment_city'       => 'New York',
+    'payment_postcode'   => '10001',
+    'payment_zone'       => 'New York',
+    'payment_zone_id'    => 48,
+    'payment_country'    => 'United States',
+    'payment_country_id' => 223,
+    'payment_custom_field' => []
+];
+```
+
+### Payment Method
+
+```php
+$payment_method = [
+    'name' => 'Credit Card',
+    'code' => 'stripe.stripe'
+];
+```
+
+## Shipping Information
+
+### Shipping Address
+
+```php
+$shipping_address = [
+    'shipping_address_id' => 124,
+    'shipping_firstname'  => 'John',
+    'shipping_lastname'   => 'Smith',
+    'shipping_company'    => '',
+    'shipping_address_1'  => '456 Oak Avenue',
+    'shipping_address_2'  => 'Apt 5B',
+    'shipping_city'       => 'Los Angeles',
+    'shipping_postcode'   => '90001',
+    'shipping_zone'       => 'California',
+    'shipping_zone_id'    => 12,
+    'shipping_country'    => 'United States',
+    'shipping_country_id' => 223,
+    'shipping_custom_field' => []
+];
+```
+
+### Shipping Method
+
+```php
+$shipping_method = [
+    'name'         => 'UPS Ground',
+    'code'         => 'ups.ground',
+    'cost'         => 15.00,
+    'tax_class_id' => 9
+];
+```
+
+## Order Totals
+
+Order totals break down the final price:
+
+```php
+$order_totals = [
+    [
+        'order_total_id' => 1,
+        'code'           => 'sub_total',
+        'title'          => 'Sub-Total',
+        'value'          => 2399.00,
+        'sort_order'     => 1
+    ],
+    [
+        'order_total_id' => 2,
+        'code'           => 'shipping',
+        'title'          => 'UPS Ground',
+        'value'          => 15.00,
+        'sort_order'     => 3
+    ],
+    [
+        'order_total_id' => 3,
+        'code'           => 'tax',
+        'title'          => 'Sales Tax',
+        'value'          => 191.92,
+        'sort_order'     => 5
+    ],
+    [
+        'order_total_id' => 4,
+        'code'           => 'total',
+        'title'          => 'Total',
+        'value'          => 2605.92,
+        'sort_order'     => 9
+    ]
+];
+```
+
+<Accordion title="Order Total Extension Types">
+Order totals are added by extensions and can include:
+- **sub_total** - Product subtotal
+- **shipping** - Shipping cost
+- **tax** - Tax amount
+- **coupon** - Discount from coupon code
+- **voucher** - Gift voucher amount
+- **reward** - Reward points discount
+- **low_order_fee** - Fee for orders below minimum
+- **total** - Grand total
+</Accordion>
+
+## Order Status
+
+Manage order progression through status changes:
+
+### Common Order Statuses
+
+- **Pending** - Order placed, awaiting payment
+- **Processing** - Payment received, preparing order
+- **Shipped** - Order dispatched to customer
+- **Complete** - Order delivered and finalized
+- **Canceled** - Order canceled by customer or admin
+- **Refunded** - Payment returned to customer
+- **Failed** - Payment failed or order could not be processed
+
+<Note>
+Order statuses are customizable. You can create custom statuses that match your business workflow in the Localisation > Order Status section.
+</Note>
+
+## Order History
+
+Track all changes to an order:
+
+```php
+$order_histories = [
+    [
+        'order_history_id' => 1,
+        'order_status_id'  => 1,
+        'order_status'     => 'Pending',
+        'notify'           => 1,
+        'comment'          => 'Order received',
+        'date_added'       => '2026-03-04 10:30:00'
+    ],
+    [
+        'order_history_id' => 2,
+        'order_status_id'  => 2,
+        'order_status'     => 'Processing',
+        'notify'           => 1,
+        'comment'          => 'Payment confirmed via Stripe',
+        'date_added'       => '2026-03-04 10:35:00'
+    ],
+    [
+        'order_history_id' => 3,
+        'order_status_id'  => 3,
+        'order_status'     => 'Shipped',
+        'notify'           => 1,
+        'comment'          => 'Tracking: 1Z999AA10123456784',
+        'date_added'       => '2026-03-05 14:20:00'
+    ]
+];
+```
+
+<Warning>
+Changing order status can trigger customer email notifications. Use the "Notify Customer" option carefully to avoid sending unnecessary emails.
+</Warning>
+
+## Invoice Generation
+
+### Invoice Numbers
+
+OpenCart automatically generates invoice numbers:
+
+```php
+$invoice_display = $order_info['invoice_prefix'] . $order_info['invoice_no'];
+// Result: "INV-2026-100"
+```
+
+### Printing Invoices
+
+Generate printable invoices for orders:
+
+```php
+// Generate invoice for single order
+$invoice_url = $this->url->link(
+    'sale/order.invoice',
+    'user_token=' . $this->session->data['user_token'] . '&order_id=' . $order_id
+);
+
+// Generate invoices for multiple orders
+$invoice_url = $this->url->link(
+    'sale/order.invoice',
+    'user_token=' . $this->session->data['user_token']
+);
+// POST: selected[] = [order_id_1, order_id_2, ...]
+```
+
+<Note>
+Invoices include store information, customer details, ordered products, and order totals. The invoice template can be customized in the view files.
+</Note>
+
+## Shipping Documents
+
+Generate shipping labels and packing slips:
+
+```php
+// Generate shipping document
+$shipping_url = $this->url->link(
+    'sale/order.shipping',
+    'user_token=' . $this->session->data['user_token'] . '&order_id=' . $order_id
+);
+```
+
+Shipping documents include:
+- Store and customer addresses
+- Product list with quantities
+- Product weights and dimensions
+- Shipping method
+
+## Creating/Editing Orders
+
+### Admin Order Creation
+
+Create orders manually from the admin panel:
+
+<Accordion title="Order Creation Workflow">
+1. **Select Customer** - Choose existing customer or create new
+2. **Add Products** - Select products and quantities
+3. **Choose Addresses** - Set billing and shipping addresses
+4. **Select Payment Method** - Choose payment option
+5. **Select Shipping Method** - Choose shipping carrier
+6. **Add Order Totals** - Apply discounts, calculate tax and shipping
+7. **Set Order Status** - Set initial order status
+8. **Add Comments** - Include order notes
+</Accordion>
+
+### Order Modification
+
+<Warning>
+Modifying completed orders can affect inventory levels and financial reports. Be careful when editing orders that have already been processed or shipped.
+</Warning>
+
+## Subscriptions & Recurring Orders
+
+Handle subscription-based products:
+
+```php
+$subscription_info = [
+    'subscription_plan_id' => 5,
+    'price'                => 29.99,
+    'cycle'                => 1,
+    'frequency'            => 'month',
+    'duration'             => 12,
+    'trial_status'         => 1,
+    'trial_price'          => 0.00,
+    'trial_cycle'          => 1,
+    'trial_frequency'      => 'month',
+    'trial_duration'       => 1
+];
+```
+
+## Reward Points
+
+Manage reward points from orders:
+
+```php
+// Points earned from order
+$points_earned = $this->model_sale_order->getRewardTotal($order_id);
+
+// Points used in order
+$points_used = 500; // Deducted from customer balance
+```
+
+## Affiliate Tracking
+
+Track affiliate commissions:
+
+```php
+$affiliate_info = [
+    'affiliate_id' => 25,
+    'affiliate'    => 'John Doe',
+    'commission'   => 52.12  // Amount owed to affiliate
+];
+```
+
+## Order Reporting
+
+Track additional order metrics:
+
+```php
+// Customer's IP information
+$order_tracking = [
+    'ip'              => '192.168.1.1',
+    'forwarded_ip'    => '',
+    'user_agent'      => 'Mozilla/5.0...',
+    'accept_language' => 'en-US,en;q=0.9'
+];
+```
+
+## Bulk Operations
+
+<CardGroup cols={2}>
+  <Card title="Delete Orders" icon="trash">
+    Remove multiple orders at once
+  </Card>
+  
+  <Card title="Print Invoices" icon="file-invoice">
+    Generate invoices for multiple orders
+  </Card>
+  
+  <Card title="Print Shipping" icon="truck">
+    Create shipping documents in bulk
+  </Card>
+  
+  <Card title="Export Orders" icon="download">
+    Export order data for reporting
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+1. **Update Status Promptly** - Keep customers informed of order progress
+2. **Add Tracking Numbers** - Include shipping tracking in order comments
+3. **Verify Addresses** - Check shipping addresses before processing
+4. **Monitor Payment Status** - Ensure payments are confirmed before shipping
+5. **Use Comments** - Document important order information
+6. **Generate Invoices** - Create invoices for completed orders
+7. **Check Inventory** - Verify stock levels before confirming orders
+8. **Handle Refunds Properly** - Update order status when issuing refunds
+9. **Archive Old Orders** - Keep system performant by archiving old data
+10. **Regular Backups** - Backup order data regularly
+
+## Technical Reference
+
+### Controller
+
+Location: `/upload/admin/controller/sale/order.php`
+
+Key methods:
+- `index()` - Display order listing
+- `info()` - Show order details and edit form
+- `call()` - API call to storefront for order operations
+- `delete()` - Delete orders
+- `invoice()` - Generate invoice documents
+- `shipping()` - Generate shipping documents
+- `history()` - Display order history
+- `createInvoiceNo()` - Generate invoice number
+
+### Model
+
+Location: `/upload/admin/model/sale/order.php`
+
+Key methods:
+- `getOrder()` - Fetch order data
+- `getOrders()` - Get order list with filters
+- `getProducts()` - Get order products
+- `getOptions()` - Get product options
+- `getTotals()` - Get order totals
+- `getHistories()` - Get order status history
+- `addHistory()` - Add status change to history
+
+## Related Documentation
+
+- [Catalog Management](/store/catalog) - Managing products for orders
+- [Customer Management](/store/customers) - Managing customer accounts
+- [Product Management](/store/products) - Product details and inventory

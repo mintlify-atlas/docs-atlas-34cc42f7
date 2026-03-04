@@ -1,0 +1,265 @@
+---
+title: API Authentication
+description: Learn how to authenticate and authorize API requests in OpenCart
+---
+
+## Overview
+
+OpenCart uses a session-based authentication system for API access. Authentication is required for all API operations to maintain state and ensure secure access to store data.
+
+## Authentication Flow
+
+The API authentication follows these steps:
+
+1. **Initialize Session** - Create an API session
+2. **Store API Credentials** - Validate API key/token
+3. **Maintain Session** - Keep session active during operations
+4. **Session Data** - Store customer, cart, and order data in session
+
+## API Session
+
+All API requests require a valid session. The session stores:
+
+- Customer information
+- Cart contents
+- Shipping and payment addresses
+- Selected shipping and payment methods
+- Currency and language preferences
+
+## Configuration
+
+Before using the API, configure your API credentials in the OpenCart admin panel:
+
+1. Navigate to **System > Users > API**
+2. Create or edit an API user
+3. Generate API credentials
+4. Configure allowed IP addresses
+
+<Warning>
+Store API credentials securely. Never expose API keys in client-side code or public repositories.
+</Warning>
+
+## Session Management
+
+### Creating a Session
+
+Create a new API session by initializing a request:
+
+```php
+// Session is automatically created on first API request
+$session_id = session_id();
+```
+
+### Session Storage
+
+The API stores data in `$this->session->data`:
+
+```php
+// Customer data
+$this->session->data['customer'] = [
+    'customer_id'       => 123,
+    'customer_group_id' => 1,
+    'firstname'         => 'John',
+    'lastname'          => 'Doe',
+    'email'             => 'john@example.com',
+    'telephone'         => '555-1234',
+    'custom_field'      => []
+];
+
+// Payment address
+$this->session->data['payment_address'] = [
+    'address_id'     => 1,
+    'firstname'      => 'John',
+    'lastname'       => 'Doe',
+    'address_1'      => '123 Main St',
+    'city'           => 'New York',
+    'postcode'       => '10001',
+    'country_id'     => 223,
+    'zone_id'        => 3655
+];
+```
+
+## API Endpoint Structure
+
+All API endpoints follow this structure:
+
+```
+GET /index.php?route=api/{controller}/{method}
+POST /index.php?route=api/{controller}/{method}
+```
+
+### Examples
+
+```bash
+# Cart operations
+POST /index.php?route=api/cart/addProduct
+
+# Order operations  
+GET /index.php?route=api/order&call=confirm
+
+# Customer operations
+POST /index.php?route=api/customer
+```
+
+## Request Headers
+
+Include these headers in API requests:
+
+```http
+Content-Type: application/json
+Accept: application/json
+Cookie: OCSESSID={session_id}
+```
+
+## Authentication Example
+
+### PHP Example
+
+```php
+<?php
+// Initialize cURL session
+$ch = curl_init();
+
+// Set API endpoint
+curl_setopt($ch, CURLOPT_URL, 'https://your-store.com/index.php?route=api/cart/addProduct');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_POST, 1);
+
+// Set request data
+$data = [
+    'product_id' => 42,
+    'quantity'   => 1
+];
+
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+
+// Set headers
+$headers = [
+    'Content-Type: application/x-www-form-urlencoded'
+];
+
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+// Maintain session
+curl_setopt($ch, CURLOPT_COOKIEJAR, 'cookie.txt');
+curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
+
+// Execute request
+$response = curl_exec($ch);
+curl_close($ch);
+
+// Parse response
+$result = json_decode($response, true);
+
+if (isset($result['success'])) {
+    echo "Product added to cart successfully";
+} else {
+    echo "Error: " . $result['error']['warning'];
+}
+```
+
+### JavaScript Example
+
+```javascript
+const axios = require('axios');
+
+// Create axios instance with session support
+const api = axios.create({
+  baseURL: 'https://your-store.com/index.php',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
+});
+
+// Add product to cart
+async function addToCart(productId, quantity) {
+  try {
+    const response = await api.post('?route=api/cart/addProduct', 
+      new URLSearchParams({
+        product_id: productId,
+        quantity: quantity
+      })
+    );
+    
+    if (response.data.success) {
+      console.log('Product added:', response.data.success);
+      return response.data;
+    } else {
+      console.error('Error:', response.data.error);
+      throw new Error(response.data.error.warning);
+    }
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+}
+
+// Usage
+addToCart(42, 1);
+```
+
+## Security Considerations
+
+<AccordionGroup>
+  <Accordion title="IP Whitelisting">
+    Configure allowed IP addresses in the API settings to restrict access to trusted servers only.
+  </Accordion>
+  
+  <Accordion title="HTTPS Only">
+    Always use HTTPS in production to encrypt API communications and protect sensitive data.
+  </Accordion>
+  
+  <Accordion title="Session Timeout">
+    API sessions expire after a period of inactivity. Implement proper session renewal logic.
+  </Accordion>
+  
+  <Accordion title="Rate Limiting">
+    Implement rate limiting on your server to prevent API abuse and ensure fair usage.
+  </Accordion>
+</AccordionGroup>
+
+## Session Validation
+
+API controllers validate session data before processing requests:
+
+```php
+// Validate customer exists in session
+if (!isset($this->session->data['customer'])) {
+    $output['error'] = 'Customer data required';
+}
+
+// Validate cart has products
+if (!$this->cart->hasProducts()) {
+    $output['error'] = 'Cart is empty';
+}
+
+// Validate shipping address for physical products
+if ($this->cart->hasShipping() && !isset($this->session->data['shipping_address'])) {
+    $output['error'] = 'Shipping address required';
+}
+```
+
+<Note>
+All API operations are stateful. Maintain the same session across related requests to preserve cart contents, customer data, and checkout information.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="bug" href="/api/errors">
+    Learn about error codes and handling
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Start managing shopping carts
+  </Card>
+  
+  <Card title="Customer API" icon="user" href="/api/sales/customers">
+    Manage customer data
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Process and manage orders
+  </Card>
+</CardGroup>

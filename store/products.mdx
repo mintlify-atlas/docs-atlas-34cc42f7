@@ -1,0 +1,436 @@
+---
+title: Product Management
+description: Complete guide to managing products in OpenCart including creating, editing, and organizing your product inventory
+---
+
+Product management is the core functionality of your OpenCart store. This guide covers everything you need to know about creating and managing products effectively.
+
+## Product Overview
+
+Each product in OpenCart contains comprehensive information including:
+
+- Basic information (name, model, SKU)
+- Pricing and tax settings
+- Images and media
+- Descriptions and specifications
+- Stock management
+- Product options and variations
+- SEO settings
+- Related products and categories
+
+## Creating a New Product
+
+### Required Product Information
+
+<Warning>
+The following fields are required when creating a product:
+- **Product Name** (1-255 characters per language)
+- **Meta Title** (1-255 characters per language)
+- **Model** (1-64 characters)
+</Warning>
+
+### Basic Product Data Structure
+
+```php
+$product_data = [
+    'model'               => 'PROD-001',
+    'location'            => 'A1-Shelf-2',
+    'quantity'            => 100,
+    'minimum'             => 1,
+    'subtract'            => 1,  // Enable stock tracking
+    'stock_status_id'     => 5,  // Out of stock status
+    'date_available'      => '2026-01-01',
+    'manufacturer_id'     => 8,
+    'shipping'            => 1,  // Requires shipping
+    'price'               => 99.99,
+    'points'              => 0,
+    'weight'              => 1.5,
+    'weight_class_id'     => 1,  // Kilogram
+    'length'              => 10.0,
+    'width'               => 5.0,
+    'height'              => 2.0,
+    'length_class_id'     => 1,  // Centimeter
+    'status'              => 1,  // Enabled
+    'tax_class_id'        => 9,
+    'sort_order'          => 1
+];
+```
+
+## Product Descriptions
+
+Products support multi-language descriptions:
+
+<Accordion title="Product Description Structure">
+```php
+$product_description = [
+    1 => [ // Language ID (English)
+        'name'             => 'MacBook Pro 16"',
+        'description'      => '<p>The MacBook Pro 16" features...</p>',
+        'tag'              => 'laptop, apple, macbook, professional',
+        'meta_title'       => 'MacBook Pro 16" - Professional Laptop',
+        'meta_description' => 'Buy the MacBook Pro 16" with M3 chip',
+        'meta_keyword'     => 'macbook, laptop, apple'
+    ]
+];
+```
+</Accordion>
+
+## Product Identifiers
+
+OpenCart supports multiple product identification codes:
+
+```php
+$product_codes = [
+    [
+        'identifier_id' => 1, // SKU
+        'code'          => 'SKU',
+        'value'         => 'MBPRO-16-2024'
+    ],
+    [
+        'identifier_id' => 2, // UPC
+        'code'          => 'UPC',
+        'value'         => '123456789012'
+    ],
+    [
+        'identifier_id' => 3, // EAN
+        'code'          => 'EAN',
+        'value'         => '1234567890123'
+    ]
+];
+```
+
+<Note>
+Product identifiers can have custom validation rules defined via regular expressions. Invalid codes will be rejected during product save.
+</Note>
+
+## Stock Management
+
+### Inventory Tracking
+
+Configure how OpenCart tracks product inventory:
+
+- **Quantity** - Current stock level
+- **Minimum Quantity** - Minimum order quantity
+- **Subtract Stock** - Enable/disable automatic stock deduction
+- **Stock Status** - Status shown when out of stock
+- **Location** - Physical warehouse location
+
+```php
+// Example: Product with inventory tracking enabled
+$inventory_config = [
+    'quantity'        => 150,
+    'minimum'         => 1,
+    'subtract'        => 1,  // Deduct stock on order
+    'stock_status_id' => 5,  // "Out of Stock" status
+    'location'        => 'Warehouse A - Bay 12'
+];
+```
+
+### Stock Status Configuration
+
+<Warning>
+When "Subtract Stock" is enabled, OpenCart automatically reduces product quantity when orders are placed. Ensure your stock levels are accurate before enabling this feature.
+</Warning>
+
+## Product Images
+
+### Main Product Image
+
+Each product has one main image displayed on category and search pages:
+
+```php
+$product['image'] = 'catalog/products/macbook-pro-main.jpg';
+```
+
+### Additional Product Images
+
+Add multiple images for product galleries:
+
+```php
+$product_images = [
+    [
+        'image'      => 'catalog/products/macbook-pro-side.jpg',
+        'sort_order' => 1
+    ],
+    [
+        'image'      => 'catalog/products/macbook-pro-back.jpg',
+        'sort_order' => 2
+    ],
+    [
+        'image'      => 'catalog/products/macbook-pro-keyboard.jpg',
+        'sort_order' => 3
+    ]
+];
+```
+
+<Note>
+Images are stored in the `/image/` directory. Use the resize functionality in `model/tool/image` to generate thumbnails automatically.
+</Note>
+
+## Product Options
+
+Create product variations using options:
+
+### Option Types
+
+- **Select** - Dropdown selection
+- **Radio** - Radio button selection
+- **Checkbox** - Multiple selections allowed
+- **Text** - Custom text input
+- **Textarea** - Multi-line text input
+- **File** - File upload
+- **Date** - Date picker
+- **Time** - Time picker
+- **Datetime** - Date and time picker
+
+<Accordion title="Product Option Configuration Example">
+```php
+$product_option = [
+    'option_id'  => 1, // Color option
+    'required'   => 1,
+    'value'      => '',
+    'product_option_value' => [
+        [
+            'option_value_id' => 23, // Red
+            'quantity'        => 50,
+            'subtract'        => 1,
+            'price'           => 0.00,
+            'price_prefix'    => '+',
+            'points'          => 0,
+            'points_prefix'   => '+',
+            'weight'          => 0.00,
+            'weight_prefix'   => '+'
+        ],
+        [
+            'option_value_id' => 24, // Blue
+            'quantity'        => 75,
+            'subtract'        => 1,
+            'price'           => 10.00,
+            'price_prefix'    => '+',
+            'points'          => 0,
+            'points_prefix'   => '+',
+            'weight'          => 0.00,
+            'weight_prefix'   => '+'
+        ]
+    ]
+];
+```
+</Accordion>
+
+## Product Variants
+
+OpenCart supports product variants through the master product system:
+
+### Creating Variants
+
+1. Create a master product with options (e.g., T-Shirt with size and color)
+2. Add variants for specific combinations (e.g., Red T-Shirt - Size L)
+3. Each variant can have unique SKU, price, and stock
+
+```php
+// Master product
+$master_product = [
+    'product_id' => 100,
+    'master_id'  => 0,  // No master (this is the master)
+    'model'      => 'TSHIRT-BASE'
+];
+
+// Variant product
+$variant_product = [
+    'product_id' => 101,
+    'master_id'  => 100,  // Links to master product
+    'model'      => 'TSHIRT-RED-L',
+    'variant'    => [
+        'product_option_id' => 5,  // Color option
+        'value'             => 23  // Red value
+    ]
+];
+```
+
+## Product Categories
+
+Assign products to multiple categories:
+
+```php
+$product_categories = [5, 12, 28];
+```
+
+<Note>
+Products can belong to multiple categories. The product will appear in all assigned categories on the storefront.
+</Note>
+
+## Product Attributes
+
+Define product specifications using attributes:
+
+```php
+$product_attributes = [
+    [
+        'attribute_id' => 1, // Processor
+        'product_attribute_description' => [
+            1 => ['text' => 'Intel Core i7-9750H']
+        ]
+    ],
+    [
+        'attribute_id' => 2, // RAM
+        'product_attribute_description' => [
+            1 => ['text' => '16GB DDR4']
+        ]
+    ],
+    [
+        'attribute_id' => 3, // Storage
+        'product_attribute_description' => [
+            1 => ['text' => '512GB SSD']
+        ]
+    ]
+];
+```
+
+## Product Discounts
+
+Create quantity-based pricing tiers:
+
+<Accordion title="Discount Configuration">
+```php
+$product_discounts = [
+    [
+        'customer_group_id' => 1,
+        'quantity'          => 10,
+        'priority'          => 1,
+        'price'             => 89.99,
+        'date_start'        => '2026-01-01',
+        'date_end'          => '2026-12-31'
+    ],
+    [
+        'customer_group_id' => 1,
+        'quantity'          => 50,
+        'priority'          => 2,
+        'price'             => 79.99,
+        'date_start'        => '2026-01-01',
+        'date_end'          => '2026-12-31'
+    ]
+];
+```
+</Accordion>
+
+## Related Products
+
+Link related products for cross-selling:
+
+```php
+$product_related = [25, 32, 45, 67];
+```
+
+## Reward Points
+
+Configure reward points per customer group:
+
+```php
+$product_reward = [
+    1 => ['points' => 100], // Default customer group
+    2 => ['points' => 150]  // Wholesale customer group
+];
+```
+
+## SEO Configuration
+
+Create search engine friendly URLs:
+
+```php
+$product_seo_url = [
+    0 => [ // Store ID
+        1 => 'macbook-pro-16-inch',      // English URL
+        2 => 'macbook-pro-16-pulgadas'   // Spanish URL
+    ]
+];
+```
+
+<Warning>
+SEO URLs must be unique across your entire store. Duplicate URLs will cause errors when saving products.
+</Warning>
+
+## Product Filters
+
+The product listing page supports comprehensive filtering:
+
+### Available Filters
+
+- `filter_name` - Search by product name
+- `filter_model` - Search by model number
+- `filter_category_id` - Filter by category
+- `filter_manufacturer_id` - Filter by manufacturer
+- `filter_price_from` / `filter_price_to` - Price range
+- `filter_quantity_from` / `filter_quantity_to` - Stock range
+- `filter_store_id` - Filter by store
+- `filter_language_id` - Filter by language
+- `filter_status` - Show enabled/disabled products
+
+## Bulk Operations
+
+### Available Actions
+
+<CardGroup cols={2}>
+  <Card title="Copy Products" icon="copy">
+    Duplicate products with all settings and relationships
+  </Card>
+  
+  <Card title="Enable/Disable" icon="toggle-on">
+    Bulk enable or disable multiple products
+  </Card>
+  
+  <Card title="Delete Products" icon="trash">
+    Remove multiple products at once
+  </Card>
+  
+  <Card title="Export Data" icon="download">
+    Export product data for backup or migration
+  </Card>
+</CardGroup>
+
+<Note>
+When copying products, all related data (descriptions, images, categories, options) are duplicated. SEO URLs are not copied to prevent conflicts.
+</Note>
+
+## Best Practices
+
+1. **Use Clear Model Numbers** - Create consistent SKU patterns
+2. **Enable Stock Tracking** - Set subtract to 1 for inventory management
+3. **Add Multiple Images** - Show products from different angles
+4. **Write Detailed Descriptions** - Include specifications and benefits
+5. **Configure SEO Settings** - Create unique, keyword-rich URLs
+6. **Set Appropriate Options** - Use options for variations instead of separate products
+7. **Link Related Products** - Increase cross-selling opportunities
+8. **Use Attributes** - Define technical specifications for comparison
+9. **Configure Discounts** - Set quantity-based pricing tiers
+10. **Test Product Pages** - Verify all features work correctly before launching
+
+## Technical Reference
+
+### Controller
+
+Location: `/upload/admin/controller/catalog/product.php`
+
+Key methods:
+- `index()` - Display product listing
+- `form()` - Show add/edit product form
+- `save()` - Save product data
+- `delete()` - Delete products
+- `copy()` - Copy products
+- `enable()` / `disable()` - Toggle product status
+
+### Model
+
+Location: `/upload/admin/model/catalog/product.php`
+
+Key methods:
+- `addProduct()` - Create new product
+- `editProduct()` - Update product
+- `deleteProduct()` - Remove product
+- `getProduct()` - Fetch product data
+- `getProducts()` - Get product list with filters
+
+## Related Documentation
+
+- [Catalog Overview](/store/catalog) - Overall catalog management
+- [Category Management](/store/categories) - Organizing products
+- [Order Management](/store/orders) - Processing product orders

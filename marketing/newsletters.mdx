@@ -1,0 +1,441 @@
+---
+title: Newsletter & Email Marketing
+description: Send targeted email campaigns to customers, affiliates, and subscribers to promote products and drive sales
+---
+
+The newsletter system in OpenCart allows you to send bulk email campaigns to different customer segments. This is a powerful tool for announcing promotions, new products, and staying connected with your audience.
+
+## Accessing Email Marketing
+
+Navigate to **Marketing > Mail** in your admin panel to access the email campaign tool.
+
+<Note>
+  The newsletter feature is called "Mail" in the OpenCart admin interface.
+</Note>
+
+## Creating an Email Campaign
+
+<Steps>
+  <Step title="Access the Mail Tool">
+    Go to **Marketing > Mail** from the admin menu.
+  </Step>
+  
+  <Step title="Select Store">
+    Choose which store to send from if you run a multi-store setup. This determines the sender email address and store name.
+  </Step>
+  
+  <Step title="Choose Recipients">
+    Select who should receive this email:
+    - **Newsletter Subscribers**: Customers who opted in to newsletters
+    - **All Customers**: Every customer in your database
+    - **Specific Customers**: Hand-pick individual customers
+    - **Customer Group**: Target a specific customer group (Wholesale, Retail, etc.)
+    - **All Affiliates**: All affiliate partners
+    - **Specific Affiliates**: Selected affiliate partners
+    - **Product Purchasers**: Customers who bought specific products
+  </Step>
+  
+  <Step title="Write Email Content">
+    Compose your email message:
+    - **Subject Line**: Enter an engaging subject (required)
+    - **Message**: Write your email body with HTML support
+  </Step>
+  
+  <Step title="Send Campaign">
+    Click **Send** to begin sending the email campaign. The system processes emails in batches of 200.
+  </Step>
+</Steps>
+
+## Recipient Types Explained
+
+<Accordion title="Newsletter Subscribers Only">
+  Sends to customers who checked the "Subscribe to newsletter" option during registration or in their account settings.
+  
+  **Best for**: Regular promotional emails, product updates, sales announcements
+  
+  **Compliance**: This is the most compliant option as customers explicitly opted in.
+  
+  ```php
+  // Controller: upload/admin/controller/marketing/contact.php:136
+  case 'newsletter':
+    $customer_data = [
+      'filter_newsletter' => 1,
+      'start' => ($page - 1) * $limit,
+      'limit' => $limit
+    ];
+  ```
+</Accordion>
+
+<Accordion title="All Customers">
+  Sends to every customer account in your database, regardless of newsletter preference.
+  
+  **Best for**: Important account updates, security notifications, policy changes
+  
+  **Caution**: Use sparingly to avoid being marked as spam. Ensure emails are relevant to all customers.
+  
+  ```php
+  case 'customer_all':
+    $customer_data = [
+      'start' => ($page - 1) * $limit,
+      'limit' => $limit
+    ];
+  ```
+</Accordion>
+
+<Accordion title="Customer Group">
+  Target specific customer groups like Wholesale, VIP, or Default customers.
+  
+  **Best for**: Group-specific promotions, tier-exclusive offers, B2B communications
+  
+  **Example**: Send wholesale pricing updates only to wholesale customers.
+  
+  ```php
+  case 'customer_group':
+    $customer_data = [
+      'filter_customer_group_id' => $post_info['customer_group_id'],
+      'start' => ($page - 1) * $limit,
+      'limit' => $limit
+    ];
+  ```
+</Accordion>
+
+<Accordion title="Specific Customers">
+  Manually select individual customers from a searchable list.
+  
+  **Best for**: Personalized offers, VIP communications, follow-up on specific issues
+  
+  **Use case**: Send a special discount to customers who abandoned high-value carts.
+</Accordion>
+
+<Accordion title="Affiliate Partners">
+  Send to all or selected affiliate marketers.
+  
+  **Best for**: Affiliate program updates, new promotional materials, commission announcements
+  
+  **Example**: "New products available - updated affiliate links inside!"
+  
+  ```php
+  case 'affiliate_all':
+    $affiliate_data = [
+      'start' => ($page - 1) * $limit,
+      'limit' => $limit
+    ];
+  ```
+</Accordion>
+
+<Accordion title="Product Purchasers">
+  Target customers who previously purchased specific products.
+  
+  **Best for**: Cross-selling, upselling, product updates, complementary product offers
+  
+  **Example**: Send an email about camera accessories to everyone who bought a camera.
+  
+  **Powerful for**: 
+  - Consumable product replenishment reminders
+  - Accessory recommendations
+  - Upgrade offers
+  - Product recall notifications
+</Accordion>
+
+## Email Content Best Practices
+
+### Subject Lines
+
+<Tip>
+  **Effective subject lines**:
+  - Keep under 50 characters
+  - Create urgency: "24-Hour Flash Sale Ends Tonight"
+  - Use numbers: "Save 30% on 100+ Products"
+  - Personalization works: "{{name}}, exclusive offer inside"
+  - Ask questions: "Ready for summer?"
+</Tip>
+
+### Message Body
+
+The message field supports HTML, allowing you to create rich, formatted emails:
+
+```html
+<h2>Spring Sale - 25% Off Everything!</h2>
+
+<p>Hi there,</p>
+
+<p>Our biggest sale of the season is here! For the next 48 hours, enjoy <strong>25% off</strong> everything in our store.</p>
+
+<p>Use code: <strong>SPRING25</strong> at checkout</p>
+
+<p><a href="https://yourstore.com" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; display: inline-block;">Shop Now</a></p>
+
+<p>Happy shopping!<br>
+The YourStore Team</p>
+```
+
+<Note>
+  The email system automatically wraps your content in a proper HTML email template with your store branding.
+</Note>
+
+## Batch Processing
+
+Email campaigns are sent in batches to prevent server overload and avoid being flagged as spam:
+
+- **Batch Size**: 200 emails per batch (configurable)
+- **Progress Tracking**: System shows "Sent X of Y emails" during processing
+- **Queue System**: Emails are queued via the task system for reliable delivery
+
+```php
+// Controller: upload/admin/controller/marketing/contact.php:259
+$task_data = [
+  'code'   => 'mail_affiliate',
+  'action' => 'task/system/mail',
+  'args'   => [
+    'to'      => trim($email),
+    'from'    => $store_email,
+    'sender'  => $store_name,
+    'subject' => $post_info['subject'],
+    'content' => $message
+  ]
+];
+```
+
+## Practical Email Campaign Examples
+
+### Example 1: New Product Announcement
+
+**To**: Newsletter Subscribers
+**Subject**: "Just Arrived: The [Product Name] You've Been Waiting For"
+
+```html
+<h2>Introducing the New [Product Name]!</h2>
+
+<p>We're excited to announce the arrival of our latest product - the [Product Name].</p>
+
+<ul>
+  <li>Feature 1</li>
+  <li>Feature 2</li>
+  <li>Feature 3</li>
+</ul>
+
+<p><strong>Special Launch Price: $XX.XX</strong> (Regular: $YY.YY)</p>
+
+<p><a href="https://yourstore.com/product-link">View Product</a></p>
+```
+
+### Example 2: Abandoned Cart Recovery
+
+**To**: Specific Customers (with abandoned carts)
+**Subject**: "You left something behind... Plus 10% off to complete your order"
+
+```html
+<h2>Complete Your Order & Save 10%</h2>
+
+<p>Hi [Name],</p>
+
+<p>We noticed you didn't complete your purchase. Good news - your items are still available!</p>
+
+<p>Use code <strong>COMPLETE10</strong> for 10% off when you complete your order in the next 24 hours.</p>
+
+<p><a href="https://yourstore.com/cart">Return to Cart</a></p>
+```
+
+### Example 3: Customer Win-Back Campaign
+
+**To**: Customers who haven't purchased in 90+ days
+**Subject**: "We miss you! Here's 20% off your next order"
+
+```html
+<h2>Come Back & Save 20%</h2>
+
+<p>Hi [Name],</p>
+
+<p>It's been a while since your last visit. We've added lots of new products you might love!</p>
+
+<p>As a welcome back gift, enjoy <strong>20% off your next order</strong> with code: <strong>WELCOME20</strong></p>
+
+<p>This offer expires in 7 days.</p>
+
+<p><a href="https://yourstore.com">Start Shopping</a></p>
+```
+
+### Example 4: Product Replenishment Reminder
+
+**To**: Product Purchasers (consumable items bought 30+ days ago)
+**Subject**: "Time to restock your [Product Name]?"
+
+```html
+<h2>Running Low on [Product Name]?</h2>
+
+<p>Hi [Name],</p>
+
+<p>You purchased [Product Name] about a month ago. If you're running low, we wanted to make reordering easy!</p>
+
+<p><a href="https://yourstore.com/product-link">Reorder Now</a></p>
+
+<p>Plus, save 15% when you subscribe to auto-delivery.</p>
+```
+
+### Example 5: Affiliate Update
+
+**To**: All Affiliates
+**Subject**: "New Products + Increased Commissions for Q2"
+
+```html
+<h2>Affiliate Program Update - April 2024</h2>
+
+<p>Hi Affiliate Partner,</p>
+
+<p>We have exciting news to share:</p>
+
+<ul>
+  <li><strong>New Products:</strong> 25 new items added this month</li>
+  <li><strong>Commission Increase:</strong> Now earning 12% (up from 10%)</li>
+  <li><strong>New Marketing Materials:</strong> Updated banners available</li>
+</ul>
+
+<p><a href="https://yourstore.com/affiliate-resources">View Resources</a></p>
+
+<p>Thank you for promoting our store!</p>
+```
+
+## Email Deliverability Tips
+
+<Tip>
+  **Improve delivery rates**:
+  
+  1. **Use a verified sender domain**: Configure SPF and DKIM records
+  2. **Warm up your IP**: Start with small batches and increase gradually
+  3. **Clean your list**: Remove invalid email addresses regularly
+  4. **Include unsubscribe link**: Always provide an easy opt-out
+  5. **Avoid spam triggers**: Don't use ALL CAPS, excessive exclamation marks!!!, or spam words
+  6. **Test before sending**: Send a test email to yourself first
+  7. **Monitor bounce rates**: High bounces can hurt your sender reputation
+</Tip>
+
+## Legal Compliance
+
+<Note>
+  **Email marketing compliance**:
+  
+  - **CAN-SPAM (USA)**: Include physical address, clear unsubscribe option
+  - **GDPR (EU)**: Require explicit consent, honor unsubscribe requests within 30 days
+  - **CASL (Canada)**: Get express consent before sending commercial emails
+  
+  Always consult with legal counsel to ensure compliance with applicable laws.
+</Note>
+
+## Technical Reference
+
+### Email Queue System
+
+Emails are queued in the task system (`oc_task` table) for reliable background processing:
+
+- **Task Code**: `mail_affiliate` or `mail_customer`
+- **Action**: `task/system/mail`
+- **Processing**: Background cron job processes queued emails
+- **Status Tracking**: Monitor in **System > Tasks**
+
+### Sender Configuration
+
+Email sender details are pulled from store settings:
+
+- **From Address**: `config_email` from store settings
+- **From Name**: `config_name` (store name)
+- **Reply-To**: Same as from address unless configured otherwise
+
+### Controller Methods
+
+Key methods in `/upload/admin/controller/marketing/contact.php`:
+
+- `index()`: Display email campaign form
+- `send()`: Process and queue emails (line 67)
+- Recipient filtering logic (lines 135-235)
+
+### Database Tables
+
+- **Recipients**: Pulled from `oc_customer` or `oc_customer_affiliate`
+- **Queue**: Stored in `oc_task` table
+- **Newsletter Flag**: `newsletter` field in `oc_customer`
+
+## Integration with CKEditor
+
+The message field uses CKEditor for rich text formatting:
+
+```javascript
+// Controller: upload/admin/controller/marketing/contact.php:19
+$this->document->addScript('view/javascript/ckeditor/ckeditor.js');
+$this->document->addScript('view/javascript/ckeditor/adapters/jquery.js');
+```
+
+**Features**:
+- Visual HTML editor
+- Format text (bold, italic, lists)
+- Insert images and links
+- HTML source editing
+
+## Troubleshooting
+
+<Accordion title="Emails not sending">
+  **Check**:
+  - SMTP settings in **Settings > Store > Mail**
+  - PHP mail() function is enabled on server
+  - Email addresses are valid
+  - Task queue is processing (check System > Tasks)
+  
+  **Solution**: Test email settings by sending a test order confirmation.
+</Accordion>
+
+<Accordion title="Emails going to spam">
+  **Causes**:
+  - No SPF/DKIM records
+  - Spammy subject line or content
+  - High bounce rate
+  - Sending from shared hosting IP
+  
+  **Solutions**:
+  - Set up proper DNS records
+  - Use a dedicated email sending service (SendGrid, Mailgun)
+  - Clean recipient list
+  - Avoid spam trigger words
+</Accordion>
+
+<Accordion title="Batch processing stopped">
+  **Cause**: Server timeout or error during batch processing.
+  
+  **Solution**: Check the task queue in System > Tasks. Delete failed tasks and try sending again with smaller batches.
+</Accordion>
+
+<Accordion title="Cannot select customers">
+  **Cause**: JavaScript not loading or customer search autocomplete issue.
+  
+  **Solution**: Clear browser cache and ensure JavaScript is enabled. Check browser console for errors.
+</Accordion>
+
+## Advanced Strategies
+
+### Segmentation Strategy
+
+1. **Lifecycle Emails**: Send different messages based on customer journey stage
+   - New customers: Welcome series
+   - Active customers: Loyalty rewards
+   - Inactive customers: Win-back campaigns
+
+2. **Purchase-Based Segmentation**: Use product purchaser targeting
+   - Category-specific promotions
+   - Complementary product suggestions
+   - Replenishment reminders
+
+3. **Customer Group Targeting**: Leverage customer groups
+   - Wholesale: Bulk discounts, new supplier terms
+   - Retail: Sales and promotions
+   - VIP: Exclusive early access
+
+### Campaign Calendar
+
+Create a consistent email schedule:
+
+- **Weekly**: Newsletter subscribers (product highlights, blog posts)
+- **Monthly**: All customers (major promotions, new arrivals)
+- **Quarterly**: Affiliates (program updates, new materials)
+- **Triggered**: Product purchasers (based on purchase behavior)
+
+<Tip>
+  Consistency builds trust. Establish a regular sending schedule so subscribers know when to expect your emails.
+</Tip>

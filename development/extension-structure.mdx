@@ -1,0 +1,154 @@
+---
+title: "Extension File Structure"
+description: "Understand the required directory structure and file organization for OpenCart extensions"
+---
+
+## Overview
+
+OpenCart 4.x extensions follow a standardized directory structure under `extension/{vendor}/`. Each extension contains separate directories for admin, catalog, and system files.
+
+## Directory Structure
+
+```
+extension/{vendor}/
+├── admin/
+│   ├── controller/{type}/{name}.php
+│   ├── model/{type}/{name}.php
+│   ├── view/
+│   │   └── template/{type}/{name}.twig
+│   └── language/
+│       └── en-gb/{type}/{name}.php
+├── catalog/
+│   ├── controller/{type}/{name}.php
+│   ├── model/{type}/{name}.php
+│   ├── view/
+│   │   └── template/{type}/{name}.twig
+│   └── language/
+│       └── en-gb/{type}/{name}.php
+├── system/
+│   ├── library/{name}.php
+│   └── config/{name}.php
+└── install.json
+```
+
+## Extension Types
+
+| Type | Purpose | Example |
+|------|---------|---------|
+| `payment` | Payment gateways | PayPal, Stripe |
+| `shipping` | Shipping methods | Flat rate, UPS |
+| `module` | Content modules | Featured products, banners |
+| `total` | Order total calculations | Tax, shipping, discounts |
+| `theme` | Store themes | Custom designs |
+| `fraud` | Fraud detection | IP blocking, max orders |
+| `captcha` | CAPTCHA systems | reCAPTCHA, Basic CAPTCHA |
+| `currency` | Currency converters | ECB, Fixer.io |
+| `report` | Reporting tools | Sales reports, analytics |
+
+## File Naming Conventions
+
+### Namespace Pattern
+
+```
+Opencart\{Application}\Controller\Extension\{Vendor}\{Type}\{Name}
+```
+
+### Examples
+
+```php
+# Payment Extension
+Vendor: opencart
+Type: payment
+Name: bank_transfer
+
+Admin Controller:
+  Path: extension/opencart/admin/controller/payment/bank_transfer.php
+  Namespace: Opencart\Admin\Controller\Extension\Opencart\Payment
+  Class: BankTransfer
+
+Catalog Controller:
+  Path: extension/opencart/catalog/controller/payment/bank_transfer.php
+  Namespace: Opencart\Catalog\Controller\Extension\Opencart\Payment
+  Class: BankTransfer
+```
+
+## Extension Metadata
+
+### install.json
+
+Every extension should include `install.json`:
+
+```json
+{
+    "name": "My Extension",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "link": "https://example.com",
+    "type": "payment",
+    "license": {
+        "type": "MIT",
+        "url": "https://opensource.org/licenses/MIT"
+    }
+}
+```
+
+## Example: Payment Extension
+
+Complete file structure for a payment gateway:
+
+```
+extension/myvendor/
+├── admin/
+│   ├── controller/
+│   │   └── payment/
+│   │       └── mypayment.php
+│   ├── language/
+│   │   └── en-gb/
+│   │       └── payment/
+│   │           └── mypayment.php
+│   └── view/
+│       └── template/
+│           └── payment/
+│               └── mypayment.twig
+├── catalog/
+│   ├── controller/
+│   │   └── payment/
+│   │       └── mypayment.php
+│   └── language/
+│       └── en-gb/
+│           └── payment/
+│               └── mypayment.php
+└── install.json
+```
+
+## Routing
+
+Extensions are accessed via extended routes:
+
+```
+extension/{vendor}/{type}/{name}
+extension/{vendor}/{type}/{name}.{method}
+```
+
+Examples:
+```
+extension/opencart/payment/bank_transfer
+extension/opencart/payment/bank_transfer.confirm
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Modules" icon="cube" href="/development/creating-modules">
+    Build custom modules
+  </Card>
+  <Card title="Payment Gateways" icon="credit-card" href="/development/payment-gateways">
+    Develop payment extensions
+  </Card>
+  <Card title="Shipping Methods" icon="truck" href="/development/shipping-methods">
+    Create shipping methods
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Use events in extensions
+  </Card>
+</CardGroup>

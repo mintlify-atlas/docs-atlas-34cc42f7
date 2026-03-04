@@ -1,0 +1,484 @@
+---
+title: "Database and Models"
+description: "Master database operations, model patterns, and query best practices in OpenCart"
+---
+
+## Overview
+
+OpenCart uses a custom database abstraction layer that supports multiple database engines. The **DB** class (`system/library/db.php:17`) provides a simple interface for executing queries.
+
+## Database Library
+
+### DB Class Structure
+
+From `system/library/db.php`:
+
+```php
+namespace Opencart\System\Library;
+
+class DB {
+    private object $adaptor;
+    
+    public function __construct(array $option = []) {
+        $required = ['engine', 'hostname', 'username', 'database', 'port'];
+        
+        foreach ($required as $key) {
+            if (empty($option[$key])) {
+                throw new \Exception('Error: Database ' . $key . ' required!');
+            }
+        }
+        
+        $class = 'Opencart\System\Library\DB\\' . $option['engine'];
+        $this->adaptor = new $class($option);
+    }
+    
+    public function query(string $sql) {
+        return $this->adaptor->query($sql);
+    }
+    
+    public function escape(string $value): string {
+        return $this->adaptor->escape($value);
+    }
+    
+    public function countAffected(): int {
+        return $this->adaptor->countAffected();
+    }
+    
+    public function getLastId(): int {
+        return $this->adaptor->getLastId();
+    }
+}
+```
+
+## Executing Queries
+
+### Basic Query
+
+```php
+$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` WHERE `product_id` = '50'");
+
+// Single row result
+$product = $query->row;
+
+// Multiple rows
+$products = $query->rows;
+
+// Number of results
+$count = $query->num_rows;
+```
+
+### Query Results
+
+Query objects have these properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `row` | `array` | First row as associative array |
+| `rows` | `array` | All rows as array of arrays |
+| `num_rows` | `int` | Number of rows returned |
+
+## Escaping Data
+
+### Escape Method
+
+**Always** escape user input to prevent SQL injection:
+
+```php
+// ✅ Correct - escaped string
+$name = $this->db->escape($this->request->get['name']);
+$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` 
+    WHERE `name` = '" . $name . "'");
+
+// ✅ Correct - integer cast
+$product_id = (int)$this->request->get['product_id'];
+$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` 
+    WHERE `product_id` = '" . $product_id . "'");
+
+// ❌ Incorrect - SQL injection risk
+$query = $this->db->query("SELECT * FROM product 
+    WHERE name = '" . $_GET['name'] . "'");
+```
+
+### Table Prefix
+
+**Always** use the `DB_PREFIX` constant:
+
+```php
+// ✅ Correct
+$this->db->query("SELECT * FROM `" . DB_PREFIX . "product` WHERE ...");
+
+// ❌ Incorrect - hardcoded prefix
+$this->db->query("SELECT * FROM `oc_product` WHERE ...");
+```
+
+## Model Patterns
+
+### Standard CRUD Operations
+
+#### Get Single Record
+
+```php
+public function getProduct(int $product_id): array {
+    $query = $this->db->query("
+        SELECT DISTINCT *
+        FROM `" . DB_PREFIX . "product` `p`
+        LEFT JOIN `" . DB_PREFIX . "product_description` `pd` 
+            ON (`p`.`product_id` = `pd`.`product_id`)
+        WHERE `p`.`product_id` = '" . (int)$product_id . "'
+            AND `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "'
+    ");
+    
+    return $query->num_rows ? $query->row : [];
+}
+```
+
+#### Get Multiple Records
+
+```php
+public function getProducts(array $filter = []): array {
+    $sql = "SELECT * FROM `" . DB_PREFIX . "product` `p`";
+    
+    $where = [];
+    
+    if (!empty($filter['filter_name'])) {
+        $where[] = "`p`.`name` LIKE '%" . $this->db->escape($filter['filter_name']) . "%'";
+    }
+    
+    if (!empty($filter['filter_category_id'])) {
+        $sql .= " LEFT JOIN `" . DB_PREFIX . "product_to_category` `p2c` 
+            ON (`p`.`product_id` = `p2c`.`product_id`)";
+        $where[] = "`p2c`.`category_id` = '" . (int)$filter['filter_category_id'] . "'";
+    }
+    
+    if ($where) {
+        $sql .= " WHERE " . implode(" AND ", $where);
+    }
+    
+    $sort_data = [
+        'p.name',
+        'p.price',
+        'p.sort_order'
+    ];
+    
+    if (isset($filter['sort']) && in_array($filter['sort'], $sort_data)) {
+        $sql .= " ORDER BY " . $filter['sort'];
+    } else {
+        $sql .= " ORDER BY `p`.`sort_order`";
+    }
+    
+    if (isset($filter['order']) && ($filter['order'] == 'DESC')) {
+        $sql .= " DESC";
+    } else {
+        $sql .= " ASC";
+    }
+    
+    if (isset($filter['start']) || isset($filter['limit'])) {
+        if ($filter['start'] < 0) {
+            $filter['start'] = 0;
+        }
+        
+        if ($filter['limit'] < 1) {
+            $filter['limit'] = 20;
+        }
+        
+        $sql .= " LIMIT " . (int)$filter['start'] . "," . (int)$filter['limit'];
+    }
+    
+    $query = $this->db->query($sql);
+    
+    return $query->rows;
+}
+```
+
+#### Get Total Count
+
+```php
+public function getTotalProducts(array $filter = []): int {
+    $sql = "SELECT COUNT(DISTINCT `p`.`product_id`) AS total 
+        FROM `" . DB_PREFIX . "product` `p`";
+    
+    $where = [];
+    
+    if (!empty($filter['filter_name'])) {
+        $where[] = "`p`.`name` LIKE '%" . $this->db->escape($filter['filter_name']) . "%'";
+    }
+    
+    if ($where) {
+        $sql .= " WHERE " . implode(" AND ", $where);
+    }
+    
+    $query = $this->db->query($sql);
+    
+    return (int)$query->row['total'];
+}
+```
+
+#### Add Record
+
+```php
+public function addProduct(array $data): int {
+    $this->db->query("
+        INSERT INTO `" . DB_PREFIX . "product` 
+        SET `model` = '" . $this->db->escape($data['model']) . "',
+            `sku` = '" . $this->db->escape($data['sku']) . "',
+            `quantity` = '" . (int)$data['quantity'] . "',
+            `price` = '" . (float)$data['price'] . "',
+            `status` = '" . (int)$data['status'] . "',
+            `date_added` = NOW(),
+            `date_modified` = NOW()
+    ");
+    
+    $product_id = $this->db->getLastId();
+    
+    // Add description
+    if (isset($data['product_description'])) {
+        foreach ($data['product_description'] as $language_id => $value) {
+            $this->db->query("
+                INSERT INTO `" . DB_PREFIX . "product_description` 
+                SET `product_id` = '" . (int)$product_id . "',
+                    `language_id` = '" . (int)$language_id . "',
+                    `name` = '" . $this->db->escape($value['name']) . "',
+                    `description` = '" . $this->db->escape($value['description']) . "'
+            ");
+        }
+    }
+    
+    return $product_id;
+}
+```
+
+#### Edit Record
+
+```php
+public function editProduct(int $product_id, array $data): void {
+    $this->db->query("
+        UPDATE `" . DB_PREFIX . "product` 
+        SET `model` = '" . $this->db->escape($data['model']) . "',
+            `sku` = '" . $this->db->escape($data['sku']) . "',
+            `quantity` = '" . (int)$data['quantity'] . "',
+            `price` = '" . (float)$data['price'] . "',
+            `status` = '" . (int)$data['status'] . "',
+            `date_modified` = NOW()
+        WHERE `product_id` = '" . (int)$product_id . "'
+    ");
+    
+    // Update descriptions
+    $this->db->query("DELETE FROM `" . DB_PREFIX . "product_description` 
+        WHERE `product_id` = '" . (int)$product_id . "'");
+    
+    if (isset($data['product_description'])) {
+        foreach ($data['product_description'] as $language_id => $value) {
+            $this->db->query("
+                INSERT INTO `" . DB_PREFIX . "product_description` 
+                SET `product_id` = '" . (int)$product_id . "',
+                    `language_id` = '" . (int)$language_id . "',
+                    `name` = '" . $this->db->escape($value['name']) . "',
+                    `description` = '" . $this->db->escape($value['description']) . "'
+            ");
+        }
+    }
+}
+```
+
+#### Delete Record
+
+```php
+public function deleteProduct(int $product_id): void {
+    $this->db->query("DELETE FROM `" . DB_PREFIX . "product` 
+        WHERE `product_id` = '" . (int)$product_id . "'");
+    
+    $this->db->query("DELETE FROM `" . DB_PREFIX . "product_description` 
+        WHERE `product_id` = '" . (int)$product_id . "'");
+    
+    $this->db->query("DELETE FROM `" . DB_PREFIX . "product_to_category` 
+        WHERE `product_id` = '" . (int)$product_id . "'");
+}
+```
+
+## Advanced Queries
+
+### Subqueries
+
+From `catalog/model/catalog/product.php:25`:
+
+```php
+protected array $statement = [];
+
+public function __construct(\Opencart\System\Engine\Registry $registry) {
+    parent::__construct($registry);
+    
+    // Store subqueries as reusable statements
+    $this->statement['discount'] = "
+        (SELECT 
+            (CASE 
+                WHEN `pd2`.`type` = 'P' 
+                THEN (`p`.`price` - (`p`.`price` * (`pd2`.`price` / 100)))
+                WHEN `pd2`.`type` = 'S' 
+                THEN (`p`.`price` - `pd2`.`price`)
+                ELSE `pd2`.`price` 
+            END)
+        FROM `" . DB_PREFIX . "product_discount` `pd2`
+        WHERE `pd2`.`product_id` = `p`.`product_id`
+            AND `pd2`.`customer_group_id` = '" . (int)$this->config->get('config_customer_group_id') . "'
+            AND `pd2`.`quantity` = '1'
+            AND ((`pd2`.`date_start` = '0000-00-00' OR `pd2`.`date_start` < NOW())
+                AND (`pd2`.`date_end` = '0000-00-00' OR `pd2`.`date_end` > NOW()))
+        ORDER BY `pd2`.`priority` ASC, `pd2`.`price` ASC
+        LIMIT 1) AS `discount`";
+    
+    $this->statement['review'] = "
+        (SELECT COUNT(*) 
+        FROM `" . DB_PREFIX . "review` `r`
+        WHERE `r`.`product_id` = `p`.`product_id`
+            AND `r`.`status` = '1'
+        GROUP BY `r`.`product_id`) AS `reviews`";
+}
+
+public function getProduct(int $product_id): array {
+    $query = $this->db->query("
+        SELECT *, " . $this->statement['discount'] . ", " . $this->statement['review'] . "
+        FROM `" . DB_PREFIX . "product` `p`
+        WHERE `p`.`product_id` = '" . (int)$product_id . "'
+    ");
+    
+    return $query->row;
+}
+```
+
+### Joins
+
+```php
+public function getProducts(): array {
+    $query = $this->db->query("
+        SELECT `p`.*, `pd`.`name`, `pd`.`description`
+        FROM `" . DB_PREFIX . "product` `p`
+        LEFT JOIN `" . DB_PREFIX . "product_description` `pd` 
+            ON (`p`.`product_id` = `pd`.`product_id`)
+        LEFT JOIN `" . DB_PREFIX . "product_to_category` `p2c` 
+            ON (`p`.`product_id` = `p2c`.`product_id`)
+        LEFT JOIN `" . DB_PREFIX . "category` `c` 
+            ON (`p2c`.`category_id` = `c`.`category_id`)
+        WHERE `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "'
+            AND `p`.`status` = '1'
+        GROUP BY `p`.`product_id`
+    ");
+    
+    return $query->rows;
+}
+```
+
+## Database Transactions
+
+For operations requiring atomicity:
+
+```php
+public function processOrder(array $data): int {
+    // Start transaction (if supported by DB engine)
+    $this->db->query("START TRANSACTION");
+    
+    try {
+        // Add order
+        $this->db->query("INSERT INTO `" . DB_PREFIX . "order` SET ...");
+        $order_id = $this->db->getLastId();
+        
+        // Add order products
+        foreach ($data['products'] as $product) {
+            $this->db->query("INSERT INTO `" . DB_PREFIX . "order_product` SET 
+                `order_id` = '" . (int)$order_id . "', ...");
+        }
+        
+        // Update stock
+        foreach ($data['products'] as $product) {
+            $this->db->query("UPDATE `" . DB_PREFIX . "product` SET 
+                `quantity` = `quantity` - '" . (int)$product['quantity'] . "'
+                WHERE `product_id` = '" . (int)$product['product_id'] . "'");
+        }
+        
+        // Commit
+        $this->db->query("COMMIT");
+        
+        return $order_id;
+    } catch (\Exception $e) {
+        // Rollback on error
+        $this->db->query("ROLLBACK");
+        throw $e;
+    }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="Use Prepared Statements Pattern">
+While OpenCart doesn't use PDO prepared statements, follow this escaping pattern:
+
+```php
+// ✅ Good
+$sql = "SELECT * FROM `" . DB_PREFIX . "product` 
+    WHERE `name` = '" . $this->db->escape($name) . "'
+    AND `product_id` = '" . (int)$product_id . "'";
+
+// ❌ Bad
+$sql = "SELECT * FROM product WHERE name = '$name'";
+```
+</Accordion>
+
+<Accordion title="Check Query Results">
+Always verify results before using:
+
+```php
+$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` 
+    WHERE `product_id` = '" . (int)$product_id . "'");
+
+if ($query->num_rows) {
+    $product = $query->row;
+    // Use $product
+} else {
+    return []; // or throw exception
+}
+```
+</Accordion>
+
+<Accordion title="Use Filters for Flexibility">
+Build reusable query methods with filter arrays:
+
+```php
+public function getProducts(array $filter = []): array {
+    $sql = "SELECT * FROM `" . DB_PREFIX . "product`";
+    
+    $where = [];
+    
+    if (!empty($filter['name'])) {
+        $where[] = "`name` LIKE '%" . $this->db->escape($filter['name']) . "%'";
+    }
+    
+    if (isset($filter['status'])) {
+        $where[] = "`status` = '" . (int)$filter['status'] . "'";
+    }
+    
+    if ($where) {
+        $sql .= " WHERE " . implode(" AND ", $where);
+    }
+    
+    return $this->db->query($sql)->rows;
+}
+```
+</Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Hook into model events
+  </Card>
+  <Card title="Creating Modules" icon="cube" href="/development/creating-modules">
+    Build custom modules
+  </Card>
+  <Card title="Cache Library" icon="server" href="/development/libraries/cache">
+    Optimize with caching
+  </Card>
+  <Card title="Database Library" icon="database" href="/development/libraries/database">
+    Advanced DB operations
+  </Card>
+</CardGroup>

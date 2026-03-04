@@ -1,0 +1,474 @@
+---
+title: Manufacturers API
+description: Access manufacturer information and filter products by manufacturer
+---
+
+## Overview
+
+The Manufacturers API allows you to retrieve manufacturer (brand) information and filter products by manufacturer. Manufacturers help organize products by brand and enable customers to browse products from specific brands.
+
+## Get Manufacturer
+
+Retrieve detailed information about a specific manufacturer.
+
+### Method
+
+```php
+$this->load->model('catalog/manufacturer');
+$manufacturer_info = $this->model_catalog_manufacturer->getManufacturer($manufacturer_id);
+```
+
+### Parameters
+
+<ParamField path="manufacturer_id" type="integer" required>
+  The unique identifier of the manufacturer
+</ParamField>
+
+### Response
+
+<ResponseField name="manufacturer_id" type="integer">
+  Unique manufacturer identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Manufacturer name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Manufacturer description
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  Manufacturer logo/image path
+</ResponseField>
+
+<ResponseField name="sort_order" type="integer">
+  Display sort order
+</ResponseField>
+
+<ResponseField name="meta_title" type="string">
+  SEO meta title
+</ResponseField>
+
+<ResponseField name="meta_description" type="string">
+  SEO meta description
+</ResponseField>
+
+<ResponseField name="meta_keyword" type="string">
+  SEO meta keywords
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "manufacturer_id": 8,
+  "name": "Apple",
+  "description": "<p>Apple Inc. is an American multinational technology company...</p>",
+  "image": "catalog/manufacturers/apple-logo.jpg",
+  "sort_order": 1,
+  "meta_title": "Apple Products | Your Store",
+  "meta_description": "Browse all Apple products including iPhones, iPads, MacBooks...",
+  "meta_keyword": "apple, iphone, ipad, macbook, ios"
+}
+```
+
+## Get Manufacturers
+
+Retrieve a list of all manufacturers with optional sorting and pagination.
+
+### Method
+
+```php
+$this->load->model('catalog/manufacturer');
+$manufacturers = $this->model_catalog_manufacturer->getManufacturers($data);
+```
+
+### Parameters
+
+<ParamField path="sort" type="string" default="name">
+  Sort field: `name` or `sort_order`
+</ParamField>
+
+<ParamField path="order" type="string" default="ASC">
+  Sort order: `ASC` or `DESC`
+</ParamField>
+
+<ParamField path="start" type="integer" default={0}>
+  Offset for pagination
+</ParamField>
+
+<ParamField path="limit" type="integer" default={20}>
+  Number of manufacturers to return
+</ParamField>
+
+### Example Request
+
+```php
+$this->load->model('catalog/manufacturer');
+
+$data = [
+    'sort'  => 'name',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$manufacturers = $this->model_catalog_manufacturer->getManufacturers($data);
+```
+
+### Example Response
+
+```json
+[
+  {
+    "manufacturer_id": 8,
+    "name": "Apple",
+    "image": "catalog/manufacturers/apple-logo.jpg",
+    "sort_order": 1
+  },
+  {
+    "manufacturer_id": 9,
+    "name": "Canon",
+    "image": "catalog/manufacturers/canon-logo.jpg",
+    "sort_order": 2
+  },
+  {
+    "manufacturer_id": 5,
+    "name": "HTC",
+    "image": "catalog/manufacturers/htc-logo.jpg",
+    "sort_order": 3
+  },
+  {
+    "manufacturer_id": 7,
+    "name": "Hewlett-Packard",
+    "image": "catalog/manufacturers/hp-logo.jpg",
+    "sort_order": 4
+  },
+  {
+    "manufacturer_id": 6,
+    "name": "Palm",
+    "image": "catalog/manufacturers/palm-logo.jpg",
+    "sort_order": 5
+  },
+  {
+    "manufacturer_id": 10,
+    "name": "Sony",
+    "image": "catalog/manufacturers/sony-logo.jpg",
+    "sort_order": 6
+  }
+]
+```
+
+## Get Total Manufacturers
+
+Get the total count of manufacturers.
+
+### Method
+
+```php
+$this->load->model('catalog/manufacturer');
+$total = $this->model_catalog_manufacturer->getTotalManufacturers();
+```
+
+### Response
+
+Returns an integer representing the total number of manufacturers.
+
+```php
+// Example: 25
+```
+
+## Get Products by Manufacturer
+
+Retrieve products from a specific manufacturer.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+
+$data = [
+    'filter_manufacturer_id' => 8,
+    'sort' => 'pd.name',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+```
+
+### Parameters
+
+<ParamField path="filter_manufacturer_id" type="integer" required>
+  Manufacturer ID to filter products
+</ParamField>
+
+<ParamField path="sort" type="string">
+  Product sort field
+</ParamField>
+
+<ParamField path="order" type="string">
+  Sort order: ASC or DESC
+</ParamField>
+
+<ParamField path="start" type="integer">
+  Pagination offset
+</ParamField>
+
+<ParamField path="limit" type="integer">
+  Number of products to return
+</ParamField>
+
+### Example Response
+
+```json
+[
+  {
+    "product_id": 40,
+    "name": "iPhone 15 Pro",
+    "model": "IPHONE-15-PRO",
+    "price": 999.00,
+    "special": 899.00,
+    "manufacturer_id": 8,
+    "manufacturer": "Apple",
+    "image": "catalog/products/iphone-15-pro.jpg"
+  },
+  {
+    "product_id": 41,
+    "name": "MacBook Pro 14\"",
+    "model": "MBP-14-M3",
+    "price": 1999.00,
+    "manufacturer_id": 8,
+    "manufacturer": "Apple",
+    "image": "catalog/products/macbook-pro-14.jpg"
+  }
+]
+```
+
+## Manufacturer Directory Example
+
+Build an alphabetical manufacturer directory.
+
+```php
+function getManufacturerDirectory() {
+    $this->load->model('catalog/manufacturer');
+    
+    $manufacturers = $this->model_catalog_manufacturer->getManufacturers([
+        'sort' => 'name',
+        'order' => 'ASC'
+    ]);
+    
+    $directory = [];
+    
+    foreach ($manufacturers as $manufacturer) {
+        $first_letter = strtoupper(substr($manufacturer['name'], 0, 1));
+        
+        if (!isset($directory[$first_letter])) {
+            $directory[$first_letter] = [];
+        }
+        
+        $directory[$first_letter][] = $manufacturer;
+    }
+    
+    return $directory;
+}
+
+$directory = getManufacturerDirectory();
+```
+
+### Example Directory Output
+
+```json
+{
+  "A": [
+    {
+      "manufacturer_id": 8,
+      "name": "Apple",
+      "image": "catalog/manufacturers/apple-logo.jpg"
+    }
+  ],
+  "C": [
+    {
+      "manufacturer_id": 9,
+      "name": "Canon",
+      "image": "catalog/manufacturers/canon-logo.jpg"
+    }
+  ],
+  "H": [
+    {
+      "manufacturer_id": 5,
+      "name": "HTC",
+      "image": "catalog/manufacturers/htc-logo.jpg"
+    },
+    {
+      "manufacturer_id": 7,
+      "name": "Hewlett-Packard",
+      "image": "catalog/manufacturers/hp-logo.jpg"
+    }
+  ],
+  "S": [
+    {
+      "manufacturer_id": 10,
+      "name": "Sony",
+      "image": "catalog/manufacturers/sony-logo.jpg"
+    }
+  ]
+}
+```
+
+## Manufacturer Landing Page
+
+Create a complete manufacturer page with products.
+
+```php
+$this->load->model('catalog/manufacturer');
+$this->load->model('catalog/product');
+
+$manufacturer_id = 8;
+
+// Get manufacturer details
+$manufacturer = $this->model_catalog_manufacturer->getManufacturer($manufacturer_id);
+
+if ($manufacturer) {
+    // Get products by manufacturer
+    $products = $this->model_catalog_product->getProducts([
+        'filter_manufacturer_id' => $manufacturer_id,
+        'sort' => 'p.sort_order',
+        'order' => 'ASC',
+        'start' => 0,
+        'limit' => 20
+    ]);
+    
+    // Get total product count
+    $product_count = $this->model_catalog_product->getTotalProducts([
+        'filter_manufacturer_id' => $manufacturer_id
+    ]);
+    
+    $response = [
+        'manufacturer' => $manufacturer,
+        'products' => $products,
+        'product_count' => $product_count
+    ];
+}
+```
+
+## Paginated Manufacturer List
+
+```php
+$this->load->model('catalog/manufacturer');
+
+$page = 1;
+$limit = 20;
+$start = ($page - 1) * $limit;
+
+// Get manufacturers for current page
+$manufacturers = $this->model_catalog_manufacturer->getManufacturers([
+    'sort' => 'name',
+    'order' => 'ASC',
+    'start' => $start,
+    'limit' => $limit
+]);
+
+// Get total count for pagination
+$total = $this->model_catalog_manufacturer->getTotalManufacturers();
+
+$response = [
+    'manufacturers' => $manufacturers,
+    'total' => $total,
+    'page' => $page,
+    'limit' => $limit,
+    'total_pages' => ceil($total / $limit)
+];
+```
+
+## Combine Category and Manufacturer Filters
+
+Filter products by both category and manufacturer.
+
+```php
+$this->load->model('catalog/product');
+
+$data = [
+    'filter_category_id' => 20,        // Electronics category
+    'filter_manufacturer_id' => 8,     // Apple manufacturer
+    'filter_sub_category' => true,
+    'sort' => 'p.price',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+$total = $this->model_catalog_product->getTotalProducts($data);
+
+// Results: Apple products in Electronics category
+```
+
+<Note>
+Manufacturer data is cached to improve performance. The cache key is generated using an MD5 hash of the SQL query.
+</Note>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Brand Directory">
+    Display an alphabetical list of all manufacturers/brands available in your store.
+  </Accordion>
+  
+  <Accordion title="Brand Landing Pages">
+    Create dedicated pages for each manufacturer showing their logo, description, and products.
+  </Accordion>
+  
+  <Accordion title="Product Filtering">
+    Allow customers to filter products by manufacturer/brand in category or search pages.
+  </Accordion>
+  
+  <Accordion title="Brand Showcase">
+    Feature specific manufacturers on homepage or promotional pages.
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+```php
+// Get all manufacturers
+$this->load->model('catalog/manufacturer');
+$all_manufacturers = $this->model_catalog_manufacturer->getManufacturers();
+
+foreach ($all_manufacturers as $manufacturer) {
+    // Get manufacturer details
+    $manufacturer_info = $this->model_catalog_manufacturer->getManufacturer(
+        $manufacturer['manufacturer_id']
+    );
+    
+    // Count products
+    $this->load->model('catalog/product');
+    $product_count = $this->model_catalog_product->getTotalProducts([
+        'filter_manufacturer_id' => $manufacturer['manufacturer_id']
+    ]);
+    
+    echo $manufacturer_info['name'] . ': ' . $product_count . ' products';
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    Retrieve product information
+  </Card>
+  
+  <Card title="Categories API" icon="folder-tree" href="/api/catalog/categories">
+    Browse product categories
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Add products to cart
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create and manage orders
+  </Card>
+</CardGroup>

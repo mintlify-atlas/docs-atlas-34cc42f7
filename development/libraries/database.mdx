@@ -1,0 +1,106 @@
+---
+title: "Database Library"
+description: "Work with OpenCart's database abstraction layer for SQL queries and transactions"
+---
+
+## Overview
+
+The Database library provides a simple abstraction layer for database operations. It supports multiple database engines through adapters.
+
+## DB Class Structure
+
+From `system/library/db.php:17`:
+
+```php
+namespace Opencart\System\Library;
+
+class DB {
+    private object $adaptor;
+    
+    public function __construct(array $option = []) {
+        $required = ['engine', 'hostname', 'username', 'database', 'port'];
+        
+        foreach ($required as $key) {
+            if (empty($option[$key])) {
+                throw new \Exception('Error: Database ' . $key . ' required!');
+            }
+        }
+        
+        $class = 'Opencart\System\Library\DB\\' . $option['engine'];
+        $this->adaptor = new $class($option);
+    }
+    
+    public function query(string $sql) {
+        return $this->adaptor->query($sql);
+    }
+    
+    public function escape(string $value): string {
+        return $this->adaptor->escape($value);
+    }
+    
+    public function countAffected(): int {
+        return $this->adaptor->countAffected();
+    }
+    
+    public function getLastId(): int {
+        return $this->adaptor->getLastId();
+    }
+    
+    public function isConnected(): bool {
+        return $this->adaptor->isConnected();
+    }
+}
+```
+
+## Core Methods
+
+### query()
+
+Execute SQL statements:
+
+```php
+$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "product` WHERE `product_id` = '50'");
+
+// Access results
+$row = $query->row;        // Single row as array
+$rows = $query->rows;      // All rows as array of arrays
+$count = $query->num_rows; // Number of rows returned
+```
+
+### escape()
+
+Prevent SQL injection:
+
+```php
+$name = $this->db->escape($user_input);
+$this->db->query("SELECT * FROM product WHERE name = '" . $name . "'");
+```
+
+### countAffected()
+
+Get number of affected rows:
+
+```php
+$this->db->query("UPDATE product SET status = '1' WHERE category_id = '10'");
+$affected = $this->db->countAffected(); // Number of updated rows
+```
+
+### getLastId()
+
+Get auto-increment ID from INSERT:
+
+```php
+$this->db->query("INSERT INTO product SET name = 'New Product'");
+$product_id = $this->db->getLastId();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Library" icon="key" href="/development/libraries/session">
+    Session management
+  </Card>
+  <Card title="Cache Library" icon="server" href="/development/libraries/cache">
+    Caching operations
+  </Card>
+</CardGroup>

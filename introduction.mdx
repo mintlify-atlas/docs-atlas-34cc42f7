@@ -1,0 +1,136 @@
+---
+title: Introduction to OpenCart
+description: Learn about OpenCart, the free open-source ecommerce platform that provides a professional foundation for building successful online stores
+---
+
+## What is OpenCart?
+
+OpenCart is a **free open-source ecommerce platform** designed for online merchants. It provides a professional and reliable foundation to build a successful online store with all the features you need to start selling online.
+
+<Note>
+  OpenCart requires **PHP 8.0 or higher** and runs on Linux, Windows, and macOS environments.
+</Note>
+
+## Key Features
+
+OpenCart offers a comprehensive set of features for building and managing your online store:
+
+- **Product Management**: Add unlimited products with multiple images, options, and variants
+- **Multi-Store Support**: Manage multiple stores from a single admin interface
+- **Payment Gateway Integration**: Support for numerous payment methods out of the box
+- **Shipping Methods**: Integrate with major shipping providers
+- **Theme System**: Customizable themes using the Twig template engine
+- **Extension Marketplace**: Thousands of extensions and modules available
+- **SEO-Friendly**: Built-in SEO features for better search engine visibility
+- **Multi-Language & Multi-Currency**: Sell globally with full internationalization support
+
+## Technology Stack
+
+OpenCart is built using modern, proven technologies:
+
+```json
+{
+  "php": ">=8.0.2",
+  "template_engine": "twig/twig ^3.18.0",
+  "css_processor": "scssphp/scssphp ^1.10.0",
+  "configuration": "symfony/yaml ^7.4.1",
+  "cloud_services": "aws/aws-sdk-php ^3.336.13"
+}
+```
+
+<Tip>
+  Check out the [composer.json](https://github.com/opencart/opencart/blob/master/composer.json) file in the source repository for the complete list of dependencies.
+</Tip>
+
+## Architecture Overview
+
+OpenCart follows a custom **MVC-A** (Model-View-Controller-Admin) pattern:
+
+<Accordion title="Directory Structure">
+  ```
+  upload/
+  ├── admin/          # Admin panel application
+  ├── catalog/        # Frontend storefront application
+  ├── extension/      # Extensions and modules
+  ├── system/         # Core framework files
+  │   ├── engine/     # Core classes
+  │   ├── library/    # Helper libraries
+  │   ├── config/     # Configuration files
+  │   └── storage/    # Vendor dependencies
+  ├── image/          # Product and content images
+  ├── assets/         # CSS, JavaScript, fonts
+  └── install/        # Installation script
+  ```
+</Accordion>
+
+## System Requirements
+
+Before installing OpenCart, ensure your server meets these requirements:
+
+<Steps>
+  <Step title="PHP Version">
+    PHP 8.0.2 or higher is required
+  </Step>
+  
+  <Step title="Required PHP Extensions">
+    The following PHP extensions must be enabled:
+    - `curl` - For HTTP requests
+    - `gd` - For image processing
+    - `zip` - For file compression
+    - `mbstring` - For multi-byte string handling
+  </Step>
+  
+  <Step title="Database">
+    MySQL 5.7+ or MariaDB 10.2+ (compatible databases also supported)
+  </Step>
+  
+  <Step title="Web Server">
+    Apache 2.4+ or Nginx 1.18+ with proper URL rewriting support
+  </Step>
+</Steps>
+
+## Version Numbering
+
+OpenCart uses a **4-part version numbering system**: `MAJOR.MINOR.FEATURE.PATCH`
+
+- **MAJOR**: Rare, significant rewrites or breaking changes
+- **MINOR**: Significant changes affecting core structures (may break some 3rd party modules)
+- **FEATURE**: New extensions or features added (low risk for 3rd party modules)
+- **PATCH**: Bug fixes and safe updates (e.g., 1.2.3.4 → 1.2.3.5)
+
+<Warning>
+  Always backup your store before upgrading to a new MINOR or MAJOR version, as these may break compatibility with existing extensions.
+</Warning>
+
+## Community & Support
+
+OpenCart has a vibrant community and multiple support channels:
+
+- **Official Website**: [opencart.com](https://www.opencart.com/)
+- **Documentation**: [docs.opencart.com](http://docs.opencart.com/)
+- **Forum**: [forum.opencart.com](https://forum.opencart.com/)
+- **GitHub**: [github.com/opencart/opencart](https://github.com/opencart/opencart)
+- **Blog**: [opencart.com/blog](https://www.opencart.com/index.php?route=feature/blog)
+- **Live Chat**: [Microsoft Teams Community](https://teams.live.com/l/community/FEAMBRGMM2X2wz82gI)
+
+## License
+
+OpenCart is released under the **GNU General Public License version 3 (GPLv3)**, which means:
+
+- ✅ Free to use for commercial purposes
+- ✅ Free to modify and distribute
+- ✅ Access to source code
+- ℹ️ Modifications must also be open-source under GPLv3
+
+## Next Steps
+
+Ready to get started with OpenCart? Here's what to do next:
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Learn how to install OpenCart on your server
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/installation">
+    Get your store up and running quickly
+  </Card>
+</CardGroup>

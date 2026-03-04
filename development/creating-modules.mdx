@@ -1,0 +1,196 @@
+---
+title: "Creating Custom Modules"
+description: "Learn how to build custom OpenCart modules from scratch with real code examples"
+---
+
+## Overview
+
+Modules are extensions that display content on the storefront, such as featured products, banners, or custom widgets. They can be positioned in layouts and configured through the admin panel.
+
+## Module Structure
+
+A complete module includes:
+- **Admin controller**: Configuration interface
+- **Catalog controller**: Frontend display logic
+- **Admin model**: Settings management  
+- **View templates**: Display templates
+- **Language files**: Translatable strings
+
+## Creating a Module
+
+### 1. Admin Controller
+
+`admin/controller/extension/myvendor/module/featured.php`:
+
+```php
+<?php
+namespace Opencart\Admin\Controller\Extension\Myvendor\Module;
+
+class Featured extends \Opencart\System\Engine\Controller {
+    public function index(): void {
+        $this->load->language('extension/myvendor/module/featured');
+        
+        $this->document->setTitle($this->language->get('heading_title'));
+        
+        // Handle form submission
+        if (($this->request->server['REQUEST_METHOD'] == 'POST')) {
+            $this->load->model('setting/setting');
+            $this->model_setting_setting->editSetting('module_featured', $this->request->post);
+            
+            $this->session->data['success'] = $this->language->get('text_success');
+            $this->response->redirect($this->url->link('marketplace/extension'));
+        }
+        
+        // Prepare view data
+        $data['module_featured_status'] = $this->config->get('module_featured_status');
+        $data['module_featured_limit'] = $this->config->get('module_featured_limit');
+        
+        $this->response->setOutput($this->load->view('extension/myvendor/module/featured', $data));
+    }
+    
+    public function install(): void {
+        // Create database tables if needed
+        $this->db->query("
+            CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "featured_products` (
+                `featured_id` int(11) NOT NULL AUTO_INCREMENT,
+                `product_id` int(11) NOT NULL,
+                `sort_order` int(3) NOT NULL DEFAULT '0',
+                PRIMARY KEY (`featured_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+    
+    public function uninstall(): void {
+        // Clean up
+        $this->db->query("DROP TABLE IF EXISTS `" . DB_PREFIX . "featured_products`");
+    }
+}
+```
+
+### 2. Catalog Controller
+
+`catalog/controller/extension/myvendor/module/featured.php`:
+
+```php
+<?php
+namespace Opencart\Catalog\Controller\Extension\Myvendor\Module;
+
+class Featured extends \Opencart\System\Engine\Controller {
+    public function index(array $setting): string {
+        $this->load->language('extension/myvendor/module/featured');
+        $this->load->model('catalog/product');
+        
+        // Get featured products
+        $limit = isset($setting['limit']) ? (int)$setting['limit'] : 4;
+        
+        $products = $this->model_catalog_product->getProducts([
+            'filter_featured' => true,
+            'limit' => $limit
+        ]);
+        
+        $data['products'] = [];
+        
+        foreach ($products as $product) {
+            $data['products'][] = [
+                'product_id' => $product['product_id'],
+                'name'       => $product['name'],
+                'price'      => $this->currency->format(
+                    $product['price'],
+                    $this->session->data['currency']
+                ),
+                'image'      => $this->model_tool_image->resize($product['image'], 200, 200),
+                'href'       => $this->url->link('product/product', 'product_id=' . $product['product_id'])
+            ];
+        }
+        
+        return $this->load->view('extension/myvendor/module/featured', $data);
+    }
+}
+```
+
+### 3. View Template
+
+`catalog/view/template/extension/myvendor/module/featured.twig`:
+
+```twig
+<div class="featured-products">
+    <h3>{{ heading_title }}</h3>
+    
+    <div class="row">
+        {% for product in products %}
+            <div class="col-md-3">
+                <div class="product-card">
+                    <a href="{{ product.href }}">
+                        <img src="{{ product.image }}" alt="{{ product.name }}" />
+                    </a>
+                    <h4><a href="{{ product.href }}">{{ product.name }}</a></h4>
+                    <p class="price">{{ product.price }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+```
+
+### 4. Language Files
+
+`admin/language/en-gb/extension/myvendor/module/featured.php`:
+
+```php
+<?php
+$_['heading_title']    = 'Featured Products';
+$_['text_extension']   = 'Extensions';
+$_['text_success']     = 'Success: You have modified featured products module!';
+$_['entry_status']     = 'Status';
+$_['entry_limit']      = 'Limit';
+```
+
+## Adding to Layouts
+
+Modules appear in layouts through the admin panel:
+
+1. Go to **Design > Layouts**
+2. Edit a layout (e.g., Home)
+3. Add module to desired position
+4. Configure module settings
+
+Or programmatically:
+
+```php
+$this->load->model('design/layout');
+
+$this->model_design_layout->addModule([
+    'layout_id' => 1,
+    'position'  => 'content_top',
+    'code'      => 'featured',
+    'sort_order' => 1
+]);
+```
+
+## Module Settings
+
+Store module configuration using settings model:
+
+```php
+// Save settings
+$this->load->model('setting/setting');
+$this->model_setting_setting->editSetting('module_featured', [
+    'module_featured_status' => 1,
+    'module_featured_limit'  => 8
+]);
+
+// Read settings
+$status = $this->config->get('module_featured_status');
+$limit = $this->config->get('module_featured_limit');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Gateways" icon="credit-card" href="/development/payment-gateways">
+    Develop payment extensions
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Use events in modules
+  </Card>
+</CardGroup>

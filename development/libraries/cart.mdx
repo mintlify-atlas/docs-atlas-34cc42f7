@@ -1,0 +1,272 @@
+---
+title: "Cart Library"
+description: "Understand and work with OpenCart's cart library for shopping cart operations"
+---
+
+## Overview
+
+The Cart library (`system/library/cart/cart.php`) manages shopping cart operations including adding products, calculating totals, and handling product options.
+
+## Cart Class
+
+From `system/library/cart/cart.php:8`:
+
+```php
+namespace Opencart\System\Library\Cart;
+
+class Cart {
+    private object $db;
+    private object $config;
+    private object $customer;
+    private object $session;
+    private object $tax;
+    private object $weight;
+    private array $data = [];
+    
+    public function __construct(\Opencart\System\Engine\Registry $registry) {
+        $this->db = $registry->get('db');
+        $this->config = $registry->get('config');
+        $this->customer = $registry->get('customer');
+        $this->session = $registry->get('session');
+        $this->tax = $registry->get('tax');
+        $this->weight = $registry->get('weight');
+    }
+}
+```
+
+## Core Methods
+
+### Adding Products
+
+From `system/library/cart/cart.php:321`:
+
+```php
+/**
+ * Add product to cart
+ *
+ * @param int   $product_id
+ * @param int   $quantity
+ * @param array $option
+ * @param int   $subscription_plan_id
+ * @param array $override
+ */
+public function add(int $product_id, int $quantity = 1, array $option = [], int $subscription_plan_id = 0, array $override = []): void {
+    $this->db->query("
+        INSERT INTO `" . DB_PREFIX . "cart` 
+        SET `store_id` = '" . (int)$this->config->get('config_store_id') . "',
+            `customer_id` = '" . (int)$this->customer->getId() . "',
+            `session_id` = '" . $this->db->escape($this->session->getId()) . "',
+            `product_id` = '" . (int)$product_id . "',
+            `subscription_plan_id` = '" . (int)$subscription_plan_id . "',
+            `option` = '" . $this->db->escape(json_encode($option)) . "',
+            `quantity` = '" . (int)$quantity . "',
+            `override` = '" . $this->db->escape(json_encode($override)) . "',
+            `date_added` = NOW()
+    ");
+    
+    $this->data = [];
+}
+```
+
+### Updating Quantity
+
+From `system/library/cart/cart.php:345`:
+
+```php
+/**
+ * Update cart quantity
+ *
+ * @param int $cart_id
+ * @param int $quantity
+ */
+public function update(int $cart_id, int $quantity): void {
+    $this->db->query("
+        UPDATE `" . DB_PREFIX . "cart` 
+        SET `quantity` = '" . (int)$quantity . "' 
+        WHERE `cart_id` = '" . (int)$cart_id . "'
+            AND `customer_id` = '" . (int)$this->customer->getId() . "'
+            AND `session_id` = '" . $this->db->escape($this->session->getId()) . "'
+    ");
+    
+    $this->data = [];
+}
+```
+
+### Removing Products
+
+From `system/library/cart/cart.php:377`:
+
+```php
+/**
+ * Remove product from cart
+ *
+ * @param int $cart_id
+ */
+public function remove(int $cart_id): void {
+    $this->db->query("
+        DELETE FROM `" . DB_PREFIX . "cart` 
+        WHERE `cart_id` = '" . (int)$cart_id . "'
+            AND `customer_id` = '" . (int)$this->customer->getId() . "'
+            AND `session_id` = '" . $this->db->escape($this->session->getId()) . "'
+    ");
+    
+    unset($this->data[$cart_id]);
+}
+```
+
+### Getting Products
+
+From `system/library/cart/cart.php:75`:
+
+```php
+/**
+ * Get all cart products
+ *
+ * @return array
+ */
+public function getProducts(): array {
+    if (!$this->data) {
+        $cart_query = $this->db->query("
+            SELECT * FROM `" . DB_PREFIX . "cart` 
+            WHERE `store_id` = '" . (int)$this->config->get('config_store_id') . "'
+                AND `customer_id` = '" . (int)$this->customer->getId() . "'
+                AND `session_id` = '" . $this->db->escape($this->session->getId()) . "'
+        ");
+        
+        // Process cart items with product data, options, pricing, etc.
+        // Returns enriched product data
+    }
+    
+    return $this->data;
+}
+```
+
+## Cart Calculations
+
+### Get Subtotal
+
+From `system/library/cart/cart.php:449`:
+
+```php
+/**
+ * Get cart subtotal
+ *
+ * @return float
+ */
+public function getSubTotal(): float {
+    $total = 0;
+    
+    foreach ($this->getProducts() as $product) {
+        $total += $product['total'];
+    }
+    
+    return $total;
+}
+```
+
+### Get Total Weight
+
+From `system/library/cart/cart.php:428`:
+
+```php
+/**
+ * Get total cart weight
+ *
+ * @return float
+ */
+public function getWeight(): float {
+    $weight = 0;
+    
+    foreach ($this->getProducts() as $product) {
+        if ($product['shipping']) {
+            $weight += $this->weight->convert(
+                $product['weight'],
+                $product['weight_class_id'],
+                $this->config->get('config_weight_class_id')
+            );
+        }
+    }
+    
+    return $weight;
+}
+```
+
+### Get Taxes
+
+From `system/library/cart/cart.php:468`:
+
+```php
+/**
+ * Get cart taxes
+ *
+ * @return array
+ */
+public function getTaxes(): array {
+    $tax_data = [];
+    
+    foreach ($this->getProducts() as $product) {
+        if ($product['tax_class_id']) {
+            $tax_rates = $this->tax->getRates($product['price'], $product['tax_class_id']);
+            
+            foreach ($tax_rates as $tax_rate) {
+                if (!isset($tax_data[$tax_rate['tax_rate_id']])) {
+                    $tax_data[$tax_rate['tax_rate_id']] = $tax_rate['amount'] * $product['quantity'];
+                } else {
+                    $tax_data[$tax_rate['tax_rate_id']] += $tax_rate['amount'] * $product['quantity'];
+                }
+            }
+        }
+    }
+    
+    return $tax_data;
+}
+```
+
+## Usage Examples
+
+### Add to Cart
+
+```php
+// In controller
+if (isset($this->request->post['product_id'])) {
+    $product_id = (int)$this->request->post['product_id'];
+    $quantity = isset($this->request->post['quantity']) ? (int)$this->request->post['quantity'] : 1;
+    $option = isset($this->request->post['option']) ? $this->request->post['option'] : [];
+    
+    $this->cart->add($product_id, $quantity, $option);
+}
+```
+
+### Display Cart Contents
+
+```php
+$data['products'] = [];
+
+foreach ($this->cart->getProducts() as $product) {
+    $data['products'][] = [
+        'cart_id'   => $product['cart_id'],
+        'name'      => $product['name'],
+        'model'     => $product['model'],
+        'quantity'  => $product['quantity'],
+        'price'     => $this->currency->format($product['price'], $this->session->data['currency']),
+        'total'     => $this->currency->format($product['total'], $this->session->data['currency']),
+        'remove'    => $this->url->link('checkout/cart.remove', 'cart_id=' . $product['cart_id'])
+    ];
+}
+
+$data['totals'] = [
+    'subtotal' => $this->currency->format($this->cart->getSubTotal(), $this->session->data['currency']),
+    'total'    => $this->currency->format($this->cart->getTotal(), $this->session->data['currency'])
+];
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Library" icon="database" href="/development/libraries/database">
+    Database operations
+  </Card>
+  <Card title="Session Library" icon="key" href="/development/libraries/session">
+    Session management
+  </Card>
+</CardGroup>

@@ -1,0 +1,516 @@
+---
+title: Products API
+description: Retrieve and search product information from the OpenCart catalog
+---
+
+## Overview
+
+The Products API allows you to retrieve product information including details, pricing, images, options, and availability. Products are accessed through the catalog model rather than dedicated API controllers.
+
+## Get Product
+
+Retrieve detailed information about a specific product by its ID.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+$product_info = $this->model_catalog_product->getProduct($product_id);
+```
+
+### Parameters
+
+<ParamField path="product_id" type="integer" required>
+  The unique identifier of the product
+</ParamField>
+
+### Response
+
+<ResponseField name="product_id" type="integer">
+  Unique product identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Product name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Full product description
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Product model/SKU
+</ResponseField>
+
+<ResponseField name="price" type="float">
+  Product price (includes discount if applicable)
+</ResponseField>
+
+<ResponseField name="special" type="float">
+  Special price if active, null otherwise
+</ResponseField>
+
+<ResponseField name="discount" type="float">
+  Quantity discount price if applicable
+</ResponseField>
+
+<ResponseField name="tax_class_id" type="integer">
+  Tax class identifier
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+  Available stock quantity
+</ResponseField>
+
+<ResponseField name="minimum" type="integer">
+  Minimum order quantity
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  Main product image path
+</ResponseField>
+
+<ResponseField name="manufacturer_id" type="integer">
+  Manufacturer identifier
+</ResponseField>
+
+<ResponseField name="manufacturer" type="string">
+  Manufacturer name
+</ResponseField>
+
+<ResponseField name="shipping" type="boolean">
+  Whether product requires shipping
+</ResponseField>
+
+<ResponseField name="weight" type="float">
+  Product weight
+</ResponseField>
+
+<ResponseField name="weight_class_id" type="integer">
+  Weight class identifier
+</ResponseField>
+
+<ResponseField name="length" type="float">
+  Product length dimension
+</ResponseField>
+
+<ResponseField name="width" type="float">
+  Product width dimension
+</ResponseField>
+
+<ResponseField name="height" type="float">
+  Product height dimension
+</ResponseField>
+
+<ResponseField name="length_class_id" type="integer">
+  Length class identifier
+</ResponseField>
+
+<ResponseField name="rating" type="integer">
+  Average product rating (0-5)
+</ResponseField>
+
+<ResponseField name="reviews" type="integer">
+  Number of product reviews
+</ResponseField>
+
+<ResponseField name="reward" type="integer">
+  Reward points for purchase
+</ResponseField>
+
+<ResponseField name="status" type="boolean">
+  Product enabled status
+</ResponseField>
+
+<ResponseField name="date_available" type="string">
+  Date product becomes available
+</ResponseField>
+
+<ResponseField name="variant" type="array">
+  Product variant options (for variant products)
+</ResponseField>
+
+<ResponseField name="override" type="array">
+  Override values for master product
+</ResponseField>
+
+<ResponseField name="master_id" type="integer">
+  Master product ID (for variant products)
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "product_id": 42,
+  "name": "Premium Wireless Headphones",
+  "description": "High-quality wireless headphones with active noise cancellation...",
+  "model": "WH-1000XM4",
+  "sku": "HEADPHONES-001",
+  "upc": "",
+  "ean": "",
+  "jan": "",
+  "isbn": "",
+  "mpn": "",
+  "location": "Warehouse A",
+  "price": 299.99,
+  "special": 249.99,
+  "discount": null,
+  "tax_class_id": 9,
+  "quantity": 50,
+  "minimum": 1,
+  "subtract": true,
+  "stock_status_id": 7,
+  "stock_status": "In Stock",
+  "image": "catalog/products/headphones-main.jpg",
+  "manufacturer_id": 8,
+  "manufacturer": "Sony",
+  "shipping": true,
+  "weight": 0.25,
+  "weight_class_id": 1,
+  "length": 7.3,
+  "width": 2.4,
+  "height": 9.9,
+  "length_class_id": 2,
+  "rating": 5,
+  "reviews": 127,
+  "reward": 300,
+  "points": 0,
+  "status": true,
+  "date_available": "2024-01-01",
+  "date_modified": "2024-03-01 10:30:00",
+  "date_added": "2024-01-01 08:00:00",
+  "variant": [],
+  "override": [],
+  "master_id": 0
+}
+```
+
+## Get Products
+
+Retrieve a list of products with optional filtering and sorting.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+$products = $this->model_catalog_product->getProducts($data);
+```
+
+### Parameters
+
+<ParamField path="filter_category_id" type="integer">
+  Filter by category ID
+</ParamField>
+
+<ParamField path="filter_sub_category" type="boolean">
+  Include products from subcategories
+</ParamField>
+
+<ParamField path="filter_filter" type="string">
+  Comma-separated filter IDs
+</ParamField>
+
+<ParamField path="filter_search" type="string">
+  Search term for product name
+</ParamField>
+
+<ParamField path="filter_tag" type="string">
+  Search term for product tags
+</ParamField>
+
+<ParamField path="filter_description" type="boolean">
+  Include description in search
+</ParamField>
+
+<ParamField path="filter_manufacturer_id" type="integer">
+  Filter by manufacturer ID
+</ParamField>
+
+<ParamField path="sort" type="string">
+  Sort field: `p.sort_order`, `pd.name`, `p.model`, `p.quantity`, `p.price`, `rating`, `p.date_added`
+</ParamField>
+
+<ParamField path="order" type="string">
+  Sort order: `ASC` or `DESC`
+</ParamField>
+
+<ParamField path="start" type="integer">
+  Offset for pagination (default: 0)
+</ParamField>
+
+<ParamField path="limit" type="integer">
+  Number of products to return (default: 20)
+</ParamField>
+
+### Example Request
+
+```php
+$data = [
+    'filter_category_id' => 20,
+    'filter_sub_category' => true,
+    'filter_search' => 'wireless',
+    'sort' => 'p.price',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+```
+
+### Response
+
+Returns an array of product objects with the same structure as Get Product.
+
+## Get Product Options
+
+Retrieve all options for a product.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+$options = $this->model_catalog_product->getOptions($product_id);
+```
+
+### Response Fields
+
+<ResponseField name="product_option_id" type="integer">
+  Product option identifier
+</ResponseField>
+
+<ResponseField name="option_id" type="integer">
+  Base option identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Option name (e.g., "Size", "Color")
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Option type: `select`, `radio`, `checkbox`, `text`, `textarea`, `file`, `date`, `time`, `datetime`
+</ResponseField>
+
+<ResponseField name="value" type="array">
+  Available option values
+</ResponseField>
+
+<ResponseField name="required" type="boolean">
+  Whether option is required
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "product_option_id": 218,
+    "option_id": 5,
+    "name": "Size",
+    "type": "select",
+    "required": true,
+    "value": [
+      {
+        "product_option_value_id": 1,
+        "option_value_id": 21,
+        "name": "Small",
+        "image": "",
+        "quantity": 100,
+        "subtract": true,
+        "price": 0.00,
+        "price_prefix": "+",
+        "weight": 0.00,
+        "weight_prefix": "+"
+      },
+      {
+        "product_option_value_id": 2,
+        "option_value_id": 22,
+        "name": "Medium",
+        "image": "",
+        "quantity": 75,
+        "subtract": true,
+        "price": 0.00,
+        "price_prefix": "+",
+        "weight": 0.00,
+        "weight_prefix": "+"
+      }
+    ]
+  }
+]
+```
+
+## Get Product Images
+
+Retrieve all images for a product.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+$images = $this->model_catalog_product->getImages($product_id);
+```
+
+### Response
+
+```json
+[
+  {
+    "product_image_id": 1,
+    "image": "catalog/products/headphones-1.jpg",
+    "sort_order": 0
+  },
+  {
+    "product_image_id": 2,
+    "image": "catalog/products/headphones-2.jpg",
+    "sort_order": 1
+  }
+]
+```
+
+## Get Product Subscriptions
+
+Retrieve subscription plans available for a product.
+
+### Method
+
+```php
+$this->load->model('catalog/product');
+$subscriptions = $this->model_catalog_product->getSubscriptions($product_id);
+```
+
+### Response Fields
+
+<ResponseField name="subscription_plan_id" type="integer">
+  Subscription plan identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Subscription plan name
+</ResponseField>
+
+<ResponseField name="price" type="float">
+  Subscription price
+</ResponseField>
+
+<ResponseField name="frequency" type="string">
+  Payment frequency: `day`, `week`, `month`, `year`
+</ResponseField>
+
+<ResponseField name="cycle" type="integer">
+  Number of frequency units per cycle
+</ResponseField>
+
+<ResponseField name="duration" type="integer">
+  Number of cycles (0 = unlimited)
+</ResponseField>
+
+<ResponseField name="trial_status" type="boolean">
+  Whether trial period is available
+</ResponseField>
+
+<ResponseField name="trial_price" type="float">
+  Trial period price
+</ResponseField>
+
+<ResponseField name="trial_frequency" type="string">
+  Trial frequency period
+</ResponseField>
+
+<ResponseField name="trial_cycle" type="integer">
+  Trial cycle count
+</ResponseField>
+
+<ResponseField name="trial_duration" type="integer">
+  Trial duration in cycles
+</ResponseField>
+
+## Product Validation
+
+When adding products to cart, the following validations are performed:
+
+<Warning>
+- **Product Exists** - Product ID must be valid and active
+- **Stock Availability** - Sufficient quantity must be available
+- **Minimum Quantity** - Order must meet minimum quantity requirement
+- **Required Options** - All required options must be provided
+- **Option Values** - Option values must be valid for the product
+- **Subscription Plans** - Valid subscription plan required if product has subscriptions
+</Warning>
+
+## Code Examples
+
+### Get Product with Options
+
+```php
+$this->load->model('catalog/product');
+
+$product_id = 42;
+$product_info = $this->model_catalog_product->getProduct($product_id);
+
+if ($product_info) {
+    // Get product options
+    $options = $this->model_catalog_product->getOptions($product_id);
+    
+    // Get product images
+    $images = $this->model_catalog_product->getImages($product_id);
+    
+    // Get subscriptions
+    $subscriptions = $this->model_catalog_product->getSubscriptions($product_id);
+    
+    // Prepare response
+    $response = [
+        'product' => $product_info,
+        'options' => $options,
+        'images' => $images,
+        'subscriptions' => $subscriptions
+    ];
+}
+```
+
+### Search Products by Category
+
+```php
+$this->load->model('catalog/product');
+
+$data = [
+    'filter_category_id' => 20,
+    'filter_sub_category' => true,
+    'sort' => 'p.price',
+    'order' => 'ASC',
+    'start' => 0,
+    'limit' => 20
+];
+
+$products = $this->model_catalog_product->getProducts($data);
+$total = $this->model_catalog_product->getTotalProducts($data);
+
+foreach ($products as $product) {
+    // Process each product
+    echo $product['name'] . ' - ' . $product['price'];
+}
+```
+
+<Note>
+Product pricing automatically includes applicable discounts and special prices. The `price` field returns the effective price the customer will pay.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Categories API" icon="folder-tree" href="/api/catalog/categories">
+    Browse product categories
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Add products to cart
+  </Card>
+  
+  <Card title="Manufacturers API" icon="industry" href="/api/catalog/manufacturers">
+    Filter by manufacturer
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Create orders with products
+  </Card>
+</CardGroup>

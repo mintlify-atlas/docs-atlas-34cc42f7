@@ -1,0 +1,230 @@
+---
+title: "OpenCart Architecture Overview"
+description: "Understand the core architecture of OpenCart 4.x, including its MVC-A pattern, directory structure, and key components"
+---
+
+## Overview
+
+OpenCart 4.x follows a custom **MVC-A (Model-View-Controller-Action)** pattern built on modern PHP 8.0+ with namespaced classes. The framework emphasizes modularity, extensibility through events, and a clean separation of concerns.
+
+## Directory Structure
+
+```
+upload/
+├── catalog/              # Storefront application
+│   ├── controller/       # Catalog controllers
+│   ├── model/           # Catalog models
+│   ├── view/            # Twig templates
+│   └── language/        # Language files
+├── admin/               # Administration panel
+│   ├── controller/      # Admin controllers
+│   ├── model/           # Admin models
+│   ├── view/            # Admin templates
+│   └── language/        # Admin language files
+├── system/              # Core framework
+│   ├── engine/          # Core classes (Controller, Model, Registry, etc.)
+│   ├── library/         # System libraries (DB, Session, Cache, Cart, etc.)
+│   ├── helper/          # Helper functions
+│   └── storage/         # Vendor dependencies
+├── extension/           # Extensions and modules
+│   └── {vendor}/        # Vendor-specific extensions
+│       ├── admin/       # Extension admin files
+│       ├── catalog/     # Extension catalog files
+│       └── system/      # Extension system files
+└── assets/              # Static assets (CSS, JS, images)
+```
+
+## Core Architecture Components
+
+### 1. Registry Pattern
+
+The **Registry** (`system/engine/registry.php:15`) is the heart of OpenCart's architecture, providing dependency injection and service location.
+
+```php system/engine/registry.php
+class Registry {
+    private array $data = [];
+    
+    public function get(string $key): ?object {
+        return $this->data[$key] ?? null;
+    }
+    
+    public function set(string $key, object $value): void {
+        $this->data[$key] = $value;
+    }
+    
+    public function has(string $key): bool {
+        return isset($this->data[$key]);
+    }
+}
+```
+
+<Note>
+The registry stores all system objects (db, config, session, cart, etc.) and makes them accessible throughout the application via magic methods.
+</Note>
+
+### 2. Base Classes
+
+All controllers and models extend base classes that provide access to the registry:
+
+**Controller Base Class** (`system/engine/controller.php:17`)
+```php
+namespace Opencart\System\Engine;
+
+class Controller {
+    protected \Opencart\System\Engine\Registry $registry;
+    
+    public function __construct(\Opencart\System\Engine\Registry $registry) {
+        $this->registry = $registry;
+    }
+    
+    public function __get(string $key): object {
+        if (!$this->registry->has($key)) {
+            throw new \Exception('Error: Could not call registry key ' . $key . '!');
+        }
+        return $this->registry->get($key);
+    }
+}
+```
+
+**Model Base Class** (`system/engine/model.php:21`)
+```php
+namespace Opencart\System\Engine;
+
+class Model {
+    protected \Opencart\System\Engine\Registry $registry;
+    
+    public function __construct(\Opencart\System\Engine\Registry $registry) {
+        $this->registry = $registry;
+    }
+    
+    public function __get(string $key): object {
+        return $this->registry->get($key);
+    }
+}
+```
+
+### 3. Loader System
+
+The **Loader** (`system/engine/loader.php:17`) handles dynamic loading of MVC components:
+
+```php
+// Load a model
+$this->load->model('catalog/product');
+
+// Load a view
+$output = $this->load->view('product/product', $data);
+
+// Load language file
+$this->load->language('checkout/checkout');
+
+// Load a controller
+$output = $this->load->controller('common/header');
+
+// Load a library
+$this->load->library('pagination');
+```
+
+### 4. Namespacing Convention
+
+OpenCart 4.x uses PHP namespaces following this pattern:
+
+- **Catalog Controllers**: `Opencart\Catalog\Controller\{Path}`
+- **Admin Controllers**: `Opencart\Admin\Controller\{Path}`
+- **Models**: `Opencart\{Application}\Model\{Path}`
+- **System Classes**: `Opencart\System\Engine\{Class}`
+- **Libraries**: `Opencart\System\Library\{Class}`
+- **Extensions**: `Opencart\{Application}\Controller\Extension\{Vendor}\{Type}\{Name}`
+
+## Application Flow
+
+<Steps>
+
+<Step title="Bootstrap">
+The `index.php` file initializes the framework, loads configuration, and creates the registry with core services (database, session, cache, etc.).
+</Step>
+
+<Step title="Routing">
+The router parses the URL and determines which controller and method to execute based on the `route` parameter.
+</Step>
+
+<Step title="Controller Execution">
+The loader instantiates the controller, injects the registry, and calls the appropriate method.
+</Step>
+
+<Step title="Model Interaction">
+Controllers load models to interact with the database and business logic.
+</Step>
+
+<Step title="View Rendering">
+Controllers pass data to Twig templates for rendering HTML output.
+</Step>
+
+<Step title="Response">
+The response object sends headers and output to the client.
+</Step>
+
+</Steps>
+
+## Key Registry Objects
+
+When you access `$this->` properties in controllers and models, you're accessing registry objects:
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `$this->db` | Database | Query execution and database operations |
+| `$this->config` | Config | Configuration values and settings |
+| `$this->session` | Session | Session data management |
+| `$this->request` | Request | HTTP request data (GET, POST, etc.) |
+| `$this->response` | Response | HTTP response handling |
+| `$this->cache` | Cache | Caching operations |
+| `$this->url` | URL | URL generation |
+| `$this->load` | Loader | Dynamic loading of components |
+| `$this->cart` | Cart | Shopping cart operations (catalog only) |
+| `$this->customer` | Customer | Customer session data (catalog only) |
+| `$this->user` | User | Admin user data (admin only) |
+
+## Extension Architecture
+
+Extensions are organized by vendor and type:
+
+```
+extension/{vendor}/
+├── admin/
+│   ├── controller/{type}/{name}.php
+│   ├── model/{type}/{name}.php
+│   ├── view/template/{type}/{name}.twig
+│   └── language/en-gb/{type}/{name}.php
+├── catalog/
+│   └── controller/{type}/{name}.php
+└── system/
+    └── library/{name}.php
+```
+
+Extension types include: `payment`, `shipping`, `module`, `total`, `theme`, `fraud`, `captcha`, `currency`, etc.
+
+## PHP 8.0+ Features
+
+OpenCart 4.x leverages modern PHP features:
+
+- **Typed Properties**: All class properties use type declarations
+- **Return Types**: Methods specify return types
+- **Named Arguments**: Support for named parameters
+- **Nullsafe Operator**: Used for optional chaining
+- **Constructor Property Promotion**: Simplified syntax
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Development Setup" icon="laptop-code" href="/development/setup">
+    Configure your local development environment
+  </Card>
+  <Card title="MVC Pattern" icon="diagram-project" href="/development/mvc-pattern">
+    Learn how MVC works in OpenCart
+  </Card>
+  <Card title="Coding Standards" icon="code" href="/development/standards">
+    Follow OpenCart coding conventions
+  </Card>
+  <Card title="Event System" icon="bolt" href="/development/events">
+    Extend functionality with events
+  </Card>
+</CardGroup>

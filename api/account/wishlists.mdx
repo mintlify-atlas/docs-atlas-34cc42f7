@@ -1,0 +1,573 @@
+---
+title: Wishlists API
+description: Manage customer wishlists and saved products
+---
+
+## Overview
+
+The Wishlists API allows customers to save products to a wishlist for future reference or purchase. Customers can add products, remove them, and retrieve their complete wishlist.
+
+**Model Location:** `catalog/model/account/wishlist.php`
+
+## Add to Wishlist
+
+Add a product to a customer's wishlist.
+
+### Method
+
+```php
+$this->load->model('account/wishlist');
+$this->model_account_wishlist->addWishlist($customer_id, $product_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+<ParamField path="product_id" type="integer" required>
+  Product ID to add to wishlist
+</ParamField>
+
+### Example
+
+```php
+$customer_id = 123;
+$product_id = 42;
+
+$this->load->model('account/wishlist');
+$this->model_account_wishlist->addWishlist($customer_id, $product_id);
+
+echo "Product added to wishlist";
+```
+
+### Behavior
+
+- If product already exists in wishlist, it's removed and re-added (updates date_added)
+- Wishlist items are store-specific
+- No duplicate products in wishlist
+
+```php
+// Source: wishlist.php:28-29
+$this->db->query("DELETE FROM `" . DB_PREFIX . "customer_wishlist` 
+    WHERE `customer_id` = '" . (int)$customer_id . "' 
+    AND `store_id` = '" . (int)$this->config->get('config_store_id') . "' 
+    AND `product_id` = '" . (int)$product_id . "'");
+
+$this->db->query("INSERT INTO `" . DB_PREFIX . "customer_wishlist` 
+    SET `customer_id` = '" . (int)$customer_id . "', 
+    `store_id` = '" . (int)$this->config->get('config_store_id') . "', 
+    `product_id` = '" . (int)$product_id . "', 
+    `date_added` = NOW()");
+```
+
+## Remove from Wishlist
+
+Remove a product from the wishlist.
+
+### Method
+
+```php
+$this->load->model('account/wishlist');
+$this->model_account_wishlist->deleteWishlists($customer_id, $product_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+<ParamField path="product_id" type="integer">
+  Product ID to remove (0 to clear entire wishlist)
+</ParamField>
+
+### Examples
+
+```php
+// Remove specific product
+$this->model_account_wishlist->deleteWishlists($customer_id, 42);
+
+// Clear entire wishlist
+$this->model_account_wishlist->deleteWishlists($customer_id, 0);
+```
+
+## Get Wishlist
+
+Retrieve all products in a customer's wishlist.
+
+### Method
+
+```php
+$this->load->model('account/wishlist');
+$wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+### Response
+
+Returns an array of wishlist items.
+
+<ResponseField name="wishlist_id" type="integer">
+  Wishlist entry identifier
+</ResponseField>
+
+<ResponseField name="customer_id" type="integer">
+  Customer ID
+</ResponseField>
+
+<ResponseField name="product_id" type="integer">
+  Product ID
+</ResponseField>
+
+<ResponseField name="store_id" type="integer">
+  Store ID
+</ResponseField>
+
+<ResponseField name="date_added" type="string">
+  Date product was added to wishlist
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "wishlist_id": 1,
+    "customer_id": 123,
+    "product_id": 42,
+    "store_id": 0,
+    "date_added": "2024-03-15 10:30:00"
+  },
+  {
+    "wishlist_id": 2,
+    "customer_id": 123,
+    "product_id": 43,
+    "store_id": 0,
+    "date_added": "2024-03-16 14:20:00"
+  }
+]
+```
+
+## Get Wishlist with Product Details
+
+Retrieve wishlist with complete product information.
+
+### Example
+
+```php
+$this->load->model('account/wishlist');
+$this->load->model('catalog/product');
+$this->load->model('tool/image');
+
+$wishlist_data = [];
+$wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+
+foreach ($wishlist as $item) {
+    $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+    
+    if ($product_info) {
+        $wishlist_data[] = [
+            'wishlist_id' => $item['wishlist_id'],
+            'product_id' => $product_info['product_id'],
+            'name' => $product_info['name'],
+            'model' => $product_info['model'],
+            'price' => $product_info['price'],
+            'special' => $product_info['special'],
+            'image' => $product_info['image'],
+            'stock' => $product_info['quantity'] > 0,
+            'rating' => $product_info['rating'],
+            'date_added' => $item['date_added']
+        ];
+    }
+}
+
+return $wishlist_data;
+```
+
+### Example Response
+
+```json
+[
+  {
+    "wishlist_id": 1,
+    "product_id": 42,
+    "name": "Premium Wireless Headphones",
+    "model": "WH-1000XM4",
+    "price": 249.99,
+    "special": 199.99,
+    "image": "catalog/products/headphones.jpg",
+    "stock": true,
+    "rating": 5,
+    "date_added": "2024-03-15 10:30:00"
+  }
+]
+```
+
+## Get Total Wishlist Items
+
+Count the number of items in a customer's wishlist.
+
+### Method
+
+```php
+$this->load->model('account/wishlist');
+$total = $this->model_account_wishlist->getTotalWishlist($customer_id);
+```
+
+### Parameters
+
+<ParamField path="customer_id" type="integer" required>
+  Customer ID
+</ParamField>
+
+### Example
+
+```php
+$count = $this->model_account_wishlist->getTotalWishlist(123);
+echo "Customer has {$count} items in wishlist";
+
+// Result: "Customer has 5 items in wishlist"
+```
+
+## Check if Product in Wishlist
+
+Check if a specific product is in the customer's wishlist.
+
+### Example
+
+```php
+function isInWishlist($customer_id, $product_id) {
+    $this->load->model('account/wishlist');
+    $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+    
+    foreach ($wishlist as $item) {
+        if ($item['product_id'] == $product_id) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Usage
+if (isInWishlist(123, 42)) {
+    echo "Product is in wishlist";
+}
+```
+
+## Move Wishlist Item to Cart
+
+Add a wishlist product to the cart and optionally remove from wishlist.
+
+### Example
+
+```php
+function moveToCart($customer_id, $product_id, $remove_from_wishlist = false) {
+    $this->load->model('catalog/product');
+    $product_info = $this->model_catalog_product->getProduct($product_id);
+    
+    if ($product_info) {
+        // Add to cart
+        $cart_data = [
+            'product_id' => $product_id,
+            'quantity' => 1
+        ];
+        
+        $result = $this->load->controller('api/cart/addProduct', $cart_data);
+        
+        if (isset($result['success']) && $remove_from_wishlist) {
+            // Remove from wishlist
+            $this->load->model('account/wishlist');
+            $this->model_account_wishlist->deleteWishlists($customer_id, $product_id);
+        }
+        
+        return $result;
+    }
+    
+    return ['error' => 'Product not found'];
+}
+```
+
+## Wishlist Management Example
+
+```php
+class WishlistManager {
+    public function toggleWishlist($customer_id, $product_id) {
+        $this->load->model('account/wishlist');
+        
+        // Check if product is in wishlist
+        $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+        $in_wishlist = false;
+        
+        foreach ($wishlist as $item) {
+            if ($item['product_id'] == $product_id) {
+                $in_wishlist = true;
+                break;
+            }
+        }
+        
+        if ($in_wishlist) {
+            // Remove from wishlist
+            $this->model_account_wishlist->deleteWishlists($customer_id, $product_id);
+            return ['action' => 'removed', 'message' => 'Removed from wishlist'];
+        } else {
+            // Add to wishlist
+            $this->model_account_wishlist->addWishlist($customer_id, $product_id);
+            return ['action' => 'added', 'message' => 'Added to wishlist'];
+        }
+    }
+    
+    public function getWishlistSummary($customer_id) {
+        $this->load->model('account/wishlist');
+        $this->load->model('catalog/product');
+        
+        $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+        $total_items = count($wishlist);
+        $in_stock = 0;
+        $total_value = 0;
+        
+        foreach ($wishlist as $item) {
+            $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+            
+            if ($product_info) {
+                if ($product_info['quantity'] > 0) {
+                    $in_stock++;
+                }
+                
+                $price = $product_info['special'] ?: $product_info['price'];
+                $total_value += $price;
+            }
+        }
+        
+        return [
+            'total_items' => $total_items,
+            'in_stock' => $in_stock,
+            'out_of_stock' => $total_items - $in_stock,
+            'total_value' => $total_value
+        ];
+    }
+}
+
+// Usage
+$manager = new WishlistManager();
+$summary = $manager->getWishlistSummary(123);
+
+echo "Wishlist: {$summary['total_items']} items";
+echo "In Stock: {$summary['in_stock']}";
+echo "Total Value: $" . number_format($summary['total_value'], 2);
+```
+
+## Share Wishlist
+
+Create a shareable wishlist view.
+
+### Example
+
+```php
+function getShareableWishlist($customer_id) {
+    $this->load->model('account/wishlist');
+    $this->load->model('catalog/product');
+    $this->load->model('account/customer');
+    
+    $customer_info = $this->model_account_customer->getCustomer($customer_id);
+    $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+    
+    $data = [
+        'customer_name' => $customer_info['firstname'] . ' ' . $customer_info['lastname'],
+        'products' => []
+    ];
+    
+    foreach ($wishlist as $item) {
+        $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+        
+        if ($product_info) {
+            $data['products'][] = [
+                'product_id' => $product_info['product_id'],
+                'name' => $product_info['name'],
+                'price' => $product_info['price'],
+                'image' => $product_info['image'],
+                'link' => '/product/' . $product_info['product_id']
+            ];
+        }
+    }
+    
+    return $data;
+}
+```
+
+## Wishlist Notifications
+
+Notify customers about wishlist product changes.
+
+### Price Drop Notification
+
+```php
+function checkPriceDrops($customer_id) {
+    $this->load->model('account/wishlist');
+    $this->load->model('catalog/product');
+    
+    $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+    $price_drops = [];
+    
+    foreach ($wishlist as $item) {
+        $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+        
+        // Check if product has special price
+        if ($product_info && $product_info['special']) {
+            $discount_percent = (($product_info['price'] - $product_info['special']) / 
+                                 $product_info['price']) * 100;
+            
+            $price_drops[] = [
+                'product_id' => $product_info['product_id'],
+                'name' => $product_info['name'],
+                'original_price' => $product_info['price'],
+                'sale_price' => $product_info['special'],
+                'discount' => round($discount_percent, 0) . '%'
+            ];
+        }
+    }
+    
+    return $price_drops;
+}
+```
+
+### Stock Notification
+
+```php
+function checkBackInStock($customer_id) {
+    $this->load->model('account/wishlist');
+    $this->load->model('catalog/product');
+    
+    $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+    $back_in_stock = [];
+    
+    foreach ($wishlist as $item) {
+        $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+        
+        if ($product_info && $product_info['quantity'] > 0) {
+            $back_in_stock[] = [
+                'product_id' => $product_info['product_id'],
+                'name' => $product_info['name'],
+                'quantity' => $product_info['quantity']
+            ];
+        }
+    }
+    
+    return $back_in_stock;
+}
+```
+
+## Multi-Store Wishlists
+
+Wishlists are store-specific:
+
+```php
+$store_id = $this->config->get('config_store_id');
+
+// Wishlist items are filtered by store_id
+// Customers can have different wishlists per store
+```
+
+<Note>
+Wishlist items are automatically filtered by the current store. Customers will only see wishlist items for the current store they're browsing.
+</Note>
+
+## Complete Wishlist API Example
+
+```php
+class WishlistAPI {
+    public function addToWishlist($customer_id, $product_id) {
+        $this->load->model('account/wishlist');
+        $this->load->model('catalog/product');
+        
+        // Validate product exists
+        $product_info = $this->model_catalog_product->getProduct($product_id);
+        
+        if (!$product_info) {
+            return ['error' => 'Product not found'];
+        }
+        
+        // Add to wishlist
+        $this->model_account_wishlist->addWishlist($customer_id, $product_id);
+        
+        // Get updated count
+        $count = $this->model_account_wishlist->getTotalWishlist($customer_id);
+        
+        return [
+            'success' => 'Product added to wishlist',
+            'product_name' => $product_info['name'],
+            'wishlist_count' => $count
+        ];
+    }
+    
+    public function removeFromWishlist($customer_id, $product_id) {
+        $this->load->model('account/wishlist');
+        
+        $this->model_account_wishlist->deleteWishlists($customer_id, $product_id);
+        
+        $count = $this->model_account_wishlist->getTotalWishlist($customer_id);
+        
+        return [
+            'success' => 'Product removed from wishlist',
+            'wishlist_count' => $count
+        ];
+    }
+    
+    public function getWishlist($customer_id) {
+        $this->load->model('account/wishlist');
+        $this->load->model('catalog/product');
+        
+        $wishlist = $this->model_account_wishlist->getWishlist($customer_id);
+        $products = [];
+        
+        foreach ($wishlist as $item) {
+            $product_info = $this->model_catalog_product->getProduct($item['product_id']);
+            
+            if ($product_info) {
+                $products[] = [
+                    'product_id' => $product_info['product_id'],
+                    'name' => $product_info['name'],
+                    'model' => $product_info['model'],
+                    'price' => $product_info['price'],
+                    'special' => $product_info['special'],
+                    'image' => $product_info['image'],
+                    'stock' => $product_info['quantity'] > 0,
+                    'date_added' => $item['date_added']
+                ];
+            }
+        }
+        
+        return [
+            'products' => $products,
+            'total' => count($products)
+        ];
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Products API" icon="box" href="/api/catalog/products">
+    Browse products to add to wishlist
+  </Card>
+  
+  <Card title="Cart API" icon="cart-shopping" href="/api/sales/cart">
+    Move wishlist items to cart
+  </Card>
+  
+  <Card title="Customers API" icon="user" href="/api/sales/customers">
+    Manage customer accounts
+  </Card>
+  
+  <Card title="Orders API" icon="receipt" href="/api/sales/orders">
+    Purchase wishlist items
+  </Card>
+</CardGroup>

@@ -1,0 +1,590 @@
+---
+title: Upgrade Guide
+description: Step-by-step instructions for upgrading your existing OpenCart store from version 2.x.x or later to the latest version
+---
+
+<Warning>
+  This guide is for **existing installations only**. If you're installing OpenCart for the first time, see the [Installation Guide](/installation) instead.
+</Warning>
+
+## Before You Begin
+
+### Version Compatibility
+
+- **Upgrading from 2.x.x to 3.x+**: Follow this guide
+- **Upgrading from 1.5.x**: Contact [OpenCart Dedicated Support](https://dedicated.opencart.com/) for professional assistance
+- **Upgrading within same major version** (e.g., 3.0 to 3.1): Follow this guide
+
+<Note>
+  OpenCart 3.x introduced **Twig template engine** replacing the older TPL format. Your custom themes will need updating when upgrading from 2.x.
+</Note>
+
+### Important Version Changes
+
+<AccordionGroup>
+  <Accordion title="2.x to 3.x Breaking Changes">
+    - Template engine changed from TPL to **Twig**
+    - All view files need conversion
+    - Theme compatibility: OpenCart 2 themes **will not work** in version 3+
+    - Extension API changes require updates from developers
+  </Accordion>
+
+  <Accordion title="3.x to 4.x Breaking Changes">
+    - Minimum PHP version increased to **8.0.2**
+    - Namespace changes: `Opencart\{Application}\...`
+    - Updated dependencies (Twig 3.x, Symfony 7.x)
+    - Core structure improvements
+  </Accordion>
+</AccordionGroup>
+
+## Pre-Upgrade Checklist
+
+Complete these tasks before starting the upgrade:
+
+- [ ] **Backup your entire store** (files and database)
+- [ ] Verify current OpenCart version
+- [ ] Check extension compatibility with target version
+- [ ] Test upgrade process on staging/development site first
+- [ ] Notify customers of potential downtime
+- [ ] Disable all third-party extensions
+- [ ] Switch to default theme
+- [ ] Document current customizations
+- [ ] Ensure PHP version meets requirements (8.0+ for OpenCart 4.x)
+
+<Warning>
+  **DO NOT skip the backup step!** Always have a complete backup before upgrading. This includes:
+  - All store files (via FTP/cPanel)
+  - Complete database export
+  - Configuration files (`config.php`, `admin/config.php`)
+</Warning>
+
+## Step-by-Step Upgrade Process
+
+<Steps>
+  <Step title="Create Complete Backup">
+    ### Backup Database
+    
+    From admin panel:
+    1. Go to **System → Maintenance → Backup/Restore**
+    2. Click **Backup** to download database SQL file
+    3. Store safely off-server
+
+    Or use phpMyAdmin:
+    ```sql
+    -- Export your database
+    mysqldump -u username -p database_name > opencart_backup_$(date +%Y%m%d).sql
+    ```
+
+    ### Backup Files
+
+    Using FTP client or cPanel File Manager:
+    ```bash
+    # Create a zip of all files
+    zip -r opencart_backup_$(date +%Y%m%d).zip /path/to/opencart/
+    ```
+
+    <Tip>
+      Store backups in multiple locations: local computer, cloud storage, and external drive.
+    </Tip>
+  </Step>
+
+  <Step title="Prepare Extensions">
+    ### Check Extension Compatibility
+
+    1. List all installed extensions in **Extensions → Extensions**
+    2. Note extension versions
+    3. Visit each extension developer's website
+    4. Verify compatibility with target OpenCart version
+    5. Download updated versions if available
+
+    ### Disable Extensions
+
+    1. Go to **Extensions → Extensions**
+    2. Select **Modules** from dropdown
+    3. Click **Uninstall** (red button) for each extension
+    4. Repeat for **Payment**, **Shipping**, and **Themes**
+
+    <Warning>
+      Do not delete extension files yet—just disable them. You'll reinstall compatible versions after upgrade.
+    </Warning>
+  </Step>
+
+  <Step title="Switch to Default Theme">
+    1. Go to **Extensions → Extensions**
+    2. Select **Themes** from dropdown
+    3. Enable the **Default** theme
+    4. Click **Edit** and save settings
+
+    This prevents theme-related issues during upgrade.
+  </Step>
+
+  <Step title="Backup Configuration Files">
+    Create copies of your configuration files:
+
+    ```bash
+    cp config.php config.php.backup
+    cp admin/config.php admin/config.php.backup
+    ```
+
+    <Note>
+      **Never overwrite these files** during upgrade—they contain your database credentials and paths.
+    </Note>
+  </Step>
+
+  <Step title="Remove Old View Files (2.x to 3.x only)">
+    If upgrading from 2.x to 3.x, remove old TPL template files:
+
+    ```bash
+    # Backup existing views first
+    mv catalog/view/theme/ catalog/view/theme_backup/
+    mv admin/view/template/ admin/view/template_backup/
+    ```
+
+    OpenCart 3+ uses Twig templates, so old TPL files will cause conflicts.
+  </Step>
+
+  <Step title="Upload New Files">
+    ### Download Latest Version
+    
+    1. Download the latest OpenCart from [GitHub Releases](https://github.com/opencart/opencart/releases)
+    2. Extract the archive
+    3. Navigate to the `upload/` directory
+
+    ### Upload Files via FTP
+
+    <Warning>
+      **Critical**: Do NOT upload these files:
+      - `config.php`
+      - `admin/config.php`
+      
+      Keep your existing configuration files!
+    </Warning>
+
+    Upload all other files, overwriting existing ones:
+
+    ```bash
+    # Using SFTP or your FTP client
+    # Upload everything EXCEPT config files
+    ```
+
+    <Accordion title="What files to upload?">
+      Upload these directories and files:
+      - `/admin/` (except `admin/config.php`)
+      - `/catalog/`
+      - `/extension/`
+      - `/image/` (only new default images)
+      - `/install/`
+      - `/system/`
+      - `/assets/`
+      - `index.php`
+      - `.htaccess.txt`
+      
+      DO NOT upload:
+      - `config.php`
+      - `admin/config.php`
+      - Your custom images in `/image/`
+    </Accordion>
+  </Step>
+
+  <Step title="Run Upgrade Script">
+    ### Access Upgrade Installer
+
+    Navigate to:
+    ```
+    http://yourstore.com/install/
+    ```
+
+    ### Expected Behavior
+
+    ✅ **Correct**: You see the **OpenCart Upgrade** screen
+    
+    ❌ **Incorrect**: You see the **OpenCart Install** screen
+    
+    If you see the install screen, you accidentally overwrote your config files. Restore them from backup and try again.
+
+    ### Run Upgrade
+
+    1. Click **Continue** or **Upgrade** button
+    2. Wait for the upgrade process to complete (may take several minutes)
+    3. Review any warnings or errors
+
+    <Warning>
+      If you encounter errors during upgrade, **DO NOT continue**. Post the error message in the [OpenCart Forum](https://forum.opencart.com/) before proceeding.
+    </Warning>
+  </Step>
+
+  <Step title="Delete Install Directory">
+    After successful upgrade:
+
+    ```bash
+    rm -rf install/
+    ```
+
+    Or delete via FTP/cPanel File Manager.
+
+    <Warning>
+      Your store will not function properly until the `/install/` directory is removed!
+    </Warning>
+  </Step>
+
+  <Step title="Clear Browser Cache">
+    1. Clear all cookies in your browser
+    2. Close all browser tabs
+    3. Reopen browser
+    4. Press `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac) multiple times to hard refresh
+
+    This prevents stylesheet and JavaScript caching issues.
+  </Step>
+
+  <Step title="Update Admin Permissions">
+    1. Login to admin panel
+    2. Go to **System → Users → User Groups**
+    3. Click **Edit** next to **Top Administrator**
+    4. Check **ALL** boxes in both columns:
+       - Access Permission: Check All
+       - Modify Permission: Check All
+    5. Click **Save**
+
+    This ensures you have permissions for all new files and features.
+  </Step>
+
+  <Step title="Configure Theme">
+    1. Go to **Extensions → Extensions**
+    2. Select **Themes** from dropdown
+    3. Click **Edit** next to the Default theme
+    4. Click **Save** (even if you don't change anything)
+
+    This updates the database with new theme settings.
+  </Step>
+
+  <Step title="Update Store Settings">
+    1. Go to **System → Settings**
+    2. Click **Edit** next to your store
+    3. Review all tabs for new fields
+    4. Fill in any blank fields
+    5. Click **Save**
+
+    <Note>
+      Even if you don't see new fields, **always click Save** to update the database schema with new field names.
+    </Note>
+  </Step>
+
+  <Step title="Test Storefront">
+    1. Visit your store homepage
+    2. Press `Ctrl+Shift+R` multiple times to clear cache
+    3. Browse products and categories
+    4. Test checkout process
+    5. Verify all pages load correctly
+
+    <Warning>
+      If you see errors or blank pages, check your PHP error log for details.
+    </Warning>
+  </Step>
+</Steps>
+
+## Post-Upgrade Tasks
+
+### Reinstall Compatible Extensions
+
+<Steps>
+  <Step title="Review Extension List">
+    Check your pre-upgrade list of extensions
+  </Step>
+
+  <Step title="Install Updated Versions">
+    1. Download latest compatible versions from developers
+    2. Upload extension files
+    3. Install via **Extensions → Installer**
+    4. Configure extension settings
+    5. Test thoroughly
+  </Step>
+
+  <Step title="Remove Incompatible Extensions">
+    If an extension is not compatible:
+    - Remove extension files from server
+    - Find alternative extensions
+    - Contact developer for updates
+  </Step>
+</Steps>
+
+### Update Custom Theme
+
+If you're upgrading from 2.x to 3.x+:
+
+1. **Twig Conversion Required**: All TPL templates must be converted to Twig
+2. **Hire a Developer**: Unless you're familiar with Twig, consider hiring professional help
+3. **Theme Framework**: Look for theme frameworks that support easy updates
+
+<Tip>
+  Many theme developers offer upgrade services. Contact your theme provider before attempting manual conversion.
+</Tip>
+
+### Restore Custom Code
+
+If you had custom modifications:
+
+1. **Review Backup Files**: Check your pre-upgrade backup for customizations
+2. **Reapply Carefully**: Apply custom code to new files
+3. **Test Thoroughly**: Ensure modifications work with new version
+4. **Use Version Control**: Consider using Git for custom code management
+
+<Warning>
+  Never copy old files over new ones. Always port your changes to the new file structure.
+</Warning>
+
+## Troubleshooting Common Issues
+
+<AccordionGroup>
+  <Accordion title="Upgrade Script Errors">
+    **Symptoms**: Error messages during upgrade process
+
+    **Solutions**:
+    - Note the exact error message
+    - Search [OpenCart Forum](https://forum.opencart.com/) for similar issues
+    - Post in the version-specific upgrade thread
+    - Check official bug thread for known issues and fixes
+    - Restore backup and try again after resolution
+  </Accordion>
+
+  <Accordion title="White Screen After Upgrade">
+    **Symptoms**: Blank white page on admin or storefront
+
+    **Solutions**:
+    ```bash
+    # Enable error display temporarily
+    # In system/config/default.php:
+    $_['error_display'] = true;
+    
+    # Check PHP error logs
+    tail -f /var/log/php/error.log
+    ```
+
+    Common causes:
+    - PHP version too old
+    - Missing PHP extensions
+    - File permission issues
+    - Incorrect config.php paths
+  </Accordion>
+
+  <Accordion title="Missing Products or Categories">
+    **Symptoms**: Products disappeared after upgrade
+
+    **Solutions**:
+    - Products are still in database, usually a theme/display issue
+    - Re-enable default theme
+    - Clear cache: **System → Maintenance → Clear Cache**
+    - Check product status (ensure they're still enabled)
+    - Verify category assignments
+  </Accordion>
+
+  <Accordion title="Extension Not Working">
+    **Symptoms**: Previously working extension now broken
+
+    **Solutions**:
+    - Uninstall the extension completely
+    - Download updated version compatible with new OpenCart version
+    - Reinstall fresh copy
+    - Contact extension developer if still broken
+    - Consider alternative extensions
+  </Accordion>
+
+  <Accordion title="Theme Issues">
+    **Symptoms**: Layout broken, missing styles, odd appearance
+
+    **Solutions**:
+    - Hard refresh browser: `Ctrl+Shift+R`
+    - Clear browser cache completely
+    - Disable browser extensions
+    - Switch to default theme to isolate issue
+    - Check for Twig template errors in logs
+    - Contact theme developer for updates
+  </Accordion>
+
+  <Accordion title="Database Errors">
+    **Symptoms**: SQL errors during or after upgrade
+
+    **Solutions**:
+    ```sql
+    -- Check table integrity
+    REPAIR TABLE oc_product;
+    OPTIMIZE TABLE oc_product;
+    
+    -- Verify database encoding
+    SHOW CREATE DATABASE opencart_db;
+    ```
+
+    - Restore database backup
+    - Re-run upgrade script
+    - Check MySQL error logs
+    - Ensure database user has full permissions
+  </Accordion>
+</AccordionGroup>
+
+## Version-Specific Considerations
+
+### Upgrading to OpenCart 4.x
+
+<Accordion title="PHP 8.0+ Requirement">
+  OpenCart 4.x requires **PHP 8.0.2 minimum**:
+
+  ```bash
+  # Check PHP version
+  php -v
+  
+  # Update PHP (Ubuntu/Debian)
+  sudo apt update
+  sudo apt install php8.2 php8.2-{cli,fpm,mysql,gd,curl,zip,mbstring}
+  ```
+
+  Contact your hosting provider if you can't upgrade PHP yourself.
+</Accordion>
+
+<Accordion title="Composer Dependencies">
+  Dependencies are now managed via Composer:
+
+  ```bash
+  # Install dependencies
+  composer install --no-interaction
+  ```
+
+  The vendor directory is located at: `upload/system/storage/vendor/`
+</Accordion>
+
+### Upgrading from 2.x to 3.x
+
+<Accordion title="Template Engine Change">
+  **Major Change**: TPL → Twig
+
+  - All view files must be converted
+  - Custom themes require complete rewrite
+  - Extension view files need updates
+  - No automated conversion tool available
+
+  **Resources**:
+  - [Twig Documentation](https://twig.symfony.com/)
+  - [OpenCart 3.x Theme Development](https://docs.opencart.com/)
+</Accordion>
+
+## Best Practices
+
+<Steps>
+  <Step title="Test on Staging First">
+    Always test upgrades on a staging site before upgrading production:
+
+    ```bash
+    # Clone your site
+    rsync -av /path/to/live/ /path/to/staging/
+    
+    # Clone database
+    mysqldump live_db | mysql staging_db
+    ```
+  </Step>
+
+  <Step title="Plan for Downtime">
+    - Schedule upgrades during low-traffic periods
+    - Enable maintenance mode
+    - Notify customers in advance
+    - Have rollback plan ready
+  </Step>
+
+  <Step title="Document Everything">
+    - Record current versions of all extensions
+    - Document custom modifications
+    - Keep upgrade notes
+    - Screenshot important settings
+  </Step>
+
+  <Step title="Monitor After Upgrade">
+    - Check error logs daily for first week
+    - Monitor site performance
+    - Test all critical functionality
+    - Gather customer feedback
+  </Step>
+</Steps>
+
+## Rollback Procedure
+
+If upgrade fails and you need to rollback:
+
+<Steps>
+  <Step title="Stop Further Damage">
+    - Put site in maintenance mode
+    - Stop processing orders
+    - Document what went wrong
+  </Step>
+
+  <Step title="Restore Files">
+    ```bash
+    # Delete new files
+    rm -rf /path/to/opencart/*
+    
+    # Restore from backup
+    unzip opencart_backup_YYYYMMDD.zip
+    cp -r backup/* /path/to/opencart/
+    ```
+  </Step>
+
+  <Step title="Restore Database">
+    ```bash
+    # Restore database backup
+    mysql -u username -p database_name < opencart_backup_YYYYMMDD.sql
+    ```
+  </Step>
+
+  <Step title="Verify Restoration">
+    - Test admin login
+    - Check product pages
+    - Verify checkout process
+    - Review recent orders
+  </Step>
+</Steps>
+
+## Getting Help
+
+If you encounter issues during upgrade:
+
+1. **Check Official Resources**:
+   - [OpenCart Forum - Upgrade Section](https://forum.opencart.com/)
+   - [GitHub Issues](https://github.com/opencart/opencart/issues)
+   - [Official Documentation](http://docs.opencart.com/)
+
+2. **Community Support**:
+   - Post in version-specific upgrade threads
+   - Include: OpenCart version, PHP version, error messages
+   - Provide error log excerpts
+
+3. **Professional Help**:
+   - [OpenCart Dedicated Support](https://dedicated.opencart.com/)
+   - Hire certified OpenCart developers
+   - Extension developers can help with their products
+
+<Warning>
+  Never post database credentials, API keys, or sensitive information in public forums!
+</Warning>
+
+## Post-Upgrade Optimization
+
+After successful upgrade:
+
+<CardGroup cols={2}>
+  <Card title="Performance Tuning" icon="gauge-high">
+    - Enable caching
+    - Optimize images
+    - Review server resources
+  </Card>
+  <Card title="Security Hardening" icon="shield">
+    - Change admin directory name
+    - Update all passwords
+    - Review user permissions
+  </Card>
+  <Card title="Testing Checklist" icon="clipboard-check">
+    - Test checkout process
+    - Verify payment gateways
+    - Check email notifications
+  </Card>
+  <Card title="Backup Strategy" icon="floppy-disk">
+    - Schedule automatic backups
+    - Test backup restoration
+    - Store off-site copies
+  </Card>
+</CardGroup>
