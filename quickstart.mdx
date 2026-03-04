@@ -1,0 +1,337 @@
+---
+title: "Quick Start Guide"
+description: "Get your OpenCart store up and running in minutes with this step-by-step quickstart guide"
+---
+
+## Overview
+
+This quickstart guide will help you set up a basic OpenCart store and make your first sale. You'll learn how to install OpenCart, configure essential settings, add products, and process orders.
+
+<Note>
+This guide assumes you're starting fresh. If you need detailed installation instructions, see the [Installation Guide](/installation).
+</Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- PHP 8.0.2 or higher
+- MySQL 5.7+ or MariaDB 10.2+
+- A web server (Apache, Nginx, or similar)
+- Basic knowledge of FTP or SSH access
+
+## Step 1: Install OpenCart
+
+<Steps>
+  <Step title="Download OpenCart">
+    Download the latest version from [GitHub](https://github.com/opencart/opencart/releases) or clone the repository:
+    
+    ```bash
+    git clone https://github.com/opencart/opencart.git
+    cd opencart
+    ```
+  </Step>
+  
+  <Step title="Upload Files">
+    Upload the contents of the `upload/` directory to your web server's document root (e.g., `public_html/` or `www/`).
+    
+    ```bash
+    # Using FTP or copy files to your web root
+    cp -r upload/* /var/www/html/
+    ```
+  </Step>
+  
+  <Step title="Set Permissions">
+    Make configuration files writable:
+    
+    ```bash
+    chmod 0777 config.php
+    chmod 0777 admin/config.php
+    ```
+  </Step>
+  
+  <Step title="Run Installation Wizard">
+    Visit your domain in a web browser (e.g., `https://yourdomain.com`) and follow the installation wizard:
+    
+    1. Accept the license agreement
+    2. Verify system requirements
+    3. Enter database connection details
+    4. Create an admin account
+    5. Complete installation
+  </Step>
+  
+  <Step title="Secure Your Installation">
+    After installation completes:
+    
+    ```bash
+    # Delete the install directory
+    rm -rf install/
+    
+    # Set config files to read-only
+    chmod 0444 config.php
+    chmod 0444 admin/config.php
+    ```
+    
+    <Warning>
+    **Important**: Rename your admin directory for security:
+    ```bash
+    mv admin my-secure-admin
+    ```
+    Update the admin path in `config.php` after renaming.
+    </Warning>
+  </Step>
+</Steps>
+
+## Step 2: Configure Your Store
+
+Access your admin panel (e.g., `https://yourdomain.com/admin`) and log in with your admin credentials.
+
+<Steps>
+  <Step title="Store Settings">
+    Navigate to **System → Settings → Edit** to configure:
+    
+    - Store Name
+    - Store Owner
+    - Email Address
+    - Store Logo
+    - Meta Description
+  </Step>
+  
+  <Step title="Add a Currency">
+    Go to **System → Localisation → Currencies** and verify your default currency is set correctly.
+    
+    <Tip>
+    OpenCart supports multiple currencies. You can add more currencies and set exchange rates later.
+    </Tip>
+  </Step>
+  
+  <Step title="Configure Taxes">
+    Set up tax rates at **System → Localisation → Tax Rates** if you need to charge sales tax.
+    
+    Example for US sales tax:
+    - Tax Name: Sales Tax
+    - Tax Rate: 8.5
+    - Type: Percentage
+    - Geo Zone: United States
+  </Step>
+</Steps>
+
+## Step 3: Add Your First Product
+
+<Steps>
+  <Step title="Create a Category">
+    Go to **Catalog → Categories → Add New**
+    
+    ```yaml
+    Category Name: Electronics
+    Meta Tag Title: Electronics - Your Store
+    SEO URL: electronics
+    Status: Enabled
+    ```
+  </Step>
+  
+  <Step title="Add a Product">
+    Navigate to **Catalog → Products → Add New**
+    
+    Fill in the **General** tab:
+    - Product Name: iPhone 15 Pro
+    - Meta Tag Title: iPhone 15 Pro - Latest Model
+    - Description: High-performance smartphone...
+    
+    Fill in the **Data** tab:
+    - Model: IPH15PRO
+    - Price: 999.00
+    - Quantity: 50
+    - Status: Enabled
+    
+    Fill in the **Links** tab:
+    - Categories: Electronics
+  </Step>
+  
+  <Step title="Upload Product Images">
+    In the **Image** tab, upload a main product image and additional gallery images.
+    
+    <Note>
+    Recommended image size: 500x500 pixels for main image, minimum 228x228 for thumbnails.
+    </Note>
+  </Step>
+  
+  <Step title="Save and Preview">
+    Click **Save** and visit your storefront to see your product live.
+  </Step>
+</Steps>
+
+## Step 4: Set Up Payment and Shipping
+
+### Configure Payment Methods
+
+<Tabs>
+  <Tab title="Cash on Delivery">
+    Navigate to **Extensions → Extensions → Payment → Cash On Delivery**
+    
+    Click **Install**, then **Edit**:
+    - Status: Enabled
+    - Sort Order: 1
+  </Tab>
+  
+  <Tab title="Bank Transfer">
+    Navigate to **Extensions → Extensions → Payment → Bank Transfer**
+    
+    Click **Install**, then **Edit**:
+    - Bank Name: Your Bank Name
+    - Bank Account Details: Account number and routing info
+    - Status: Enabled
+  </Tab>
+</Tabs>
+
+### Configure Shipping Methods
+
+<Steps>
+  <Step title="Enable Flat Rate Shipping">
+    Go to **Extensions → Extensions → Shipping → Flat Rate**
+    
+    Click **Install**, then **Edit**:
+    - Cost: 5.00
+    - Tax Class: None
+    - Status: Enabled
+  </Step>
+  
+  <Step title="Set Shipping Zones (Optional)">
+    For geo-based shipping, create zones at **System → Localisation → Geo Zones**
+  </Step>
+</Steps>
+
+## Step 5: Make a Test Order
+
+<Steps>
+  <Step title="Add Product to Cart">
+    Visit your storefront, find your product, and click **Add to Cart**.
+  </Step>
+  
+  <Step title="Proceed to Checkout">
+    Click the cart icon and select **Checkout**.
+    
+    Fill in:
+    - Billing Address
+    - Shipping Address
+    - Shipping Method
+    - Payment Method
+  </Step>
+  
+  <Step title="Confirm Order">
+    Review your order summary and click **Confirm Order**.
+  </Step>
+  
+  <Step title="View Order in Admin">
+    Log into admin panel and go to **Sales → Orders** to see your test order.
+    
+    You can:
+    - View order details
+    - Update order status
+    - Add order history notes
+    - Generate invoices
+  </Step>
+</Steps>
+
+## Step 6: Customize Your Theme
+
+<Steps>
+  <Step title="Select a Theme">
+    Go to **System → Settings → Edit → Store tab**
+    
+    Choose from installed themes (default is "Basic").
+  </Step>
+  
+  <Step title="Upload Your Logo">
+    In **System → Settings → Edit → Image tab**, upload your store logo.
+  </Step>
+  
+  <Step title="Customize Layout">
+    Navigate to **Design → Layouts** to configure page layouts and module positions.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Add More Products" icon="box" href="/store/products">
+    Learn advanced product management features like options, attributes, and variants
+  </Card>
+  
+  <Card title="Install Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Extend functionality with payment gateways, shipping providers, and marketing tools
+  </Card>
+  
+  <Card title="Configure SEO" icon="search" href="/design/seo">
+    Optimize your store for search engines with SEO-friendly URLs and meta tags
+  </Card>
+  
+  <Card title="Manage Customers" icon="users" href="/store/customers">
+    Set up customer groups, loyalty programs, and email marketing
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Can't access admin panel after installation">
+    1. Check that you renamed the admin directory
+    2. Update `admin/config.php` with the new directory name
+    3. Clear your browser cache
+  </Accordion>
+  
+  <Accordion title="Products not showing on storefront">
+    Verify:
+    - Product status is **Enabled**
+    - Product is assigned to at least one **Category**
+    - Product quantity is greater than 0
+    - Product is assigned to the correct **Store**
+  </Accordion>
+  
+  <Accordion title="Images not displaying">
+    Check:
+    - `image/` directory has write permissions (755)
+    - `image/cache/` directory exists and is writable
+    - GD or ImageMagick PHP extension is installed
+  </Accordion>
+  
+  <Accordion title="Checkout not working">
+    Ensure:
+    - At least one payment method is enabled
+    - At least one shipping method is enabled
+    - Shipping/payment methods are not restricted by geo zone
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book" href="/introduction">
+    Browse complete documentation for detailed guides
+  </Card>
+  
+  <Card title="Community Forum" icon="comments" href="https://forum.opencart.com">
+    Ask questions and get help from the OpenCart community
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/opencart/opencart/issues">
+    Report bugs or request features
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Integrate with third-party services using the REST API
+  </Card>
+</CardGroup>
+
+## What's Next?
+
+Now that you have a working OpenCart store, explore these topics:
+
+1. **[Store Management](/store/catalog)** - Master product, category, and order management
+2. **[Marketing](/marketing/coupons)** - Create promotions and grow your customer base
+3. **[Development](/development/architecture)** - Build custom extensions and themes
+4. **[Configuration](/configuration/settings)** - Fine-tune your store settings for optimal performance
+
+<Note>
+**Tip**: Join the OpenCart newsletter at [opencart.com](https://www.opencart.com) to stay updated with new features and security updates.
+</Note>
